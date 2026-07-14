@@ -1,0 +1,52 @@
+/* ============================================================
+   StatusBadge Component Styles — §3.5 pastel pill palette
+   Fully rounded, soft pastel bg + matching darker text, no border
+   ============================================================ */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px var(--space-2);
+  border-radius: 100px;
+  font-size: var(--text-xs);
+  font-weight: var(--font-medium);
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Teal — Active / Sent / role: super_admin */
+.badge--primary {
+  background: var(--color-primary-light);   /* #E6F2F3 */
+  color: var(--color-primary);              /* #0A7B84 */
+}
+
+/* Info blue — Draft / Scheduled / Planned / In Progress / In Production */
+.badge--info {
+  background: var(--color-info-bg);         /* #DBEAFE */
+  color: var(--color-info);                 /* #2563EB */
+}
+
+/* Success green — Approved / Completed / In Stock / Paid / Delivered / Received / Accepted */
+.badge--success {
+  background: var(--color-success-bg);      /* #DCFCE7 */
+  color: var(--color-success);             /* #16A34A */
+}
+
+/* Warning amber — Pending / Follow Up / Low Stock / Partial / On Hold / Ordered / Dispatched */
+.badge--warning {
+  background: var(--color-warning-bg);      /* #FEF3C7 */
+  color: var(--color-warning);             /* #D97706 */
+}
+
+/* Danger red — Cancelled / Overdue / Shortage / Rejected / Pending Doc */
+.badge--danger {
+  background: var(--color-danger-bg);       /* #FEE2E2 */
+  color: var(--color-danger);              /* #DC2626 */
+}
+
+/* Grey — Inactive / Branch User / fallback */
+.badge--grey {
+  background: #F1F5F9;
+  color: var(--color-text-secondary);
+}

@@ -1,0 +1,193 @@
+/* ============================================================
+   Raw Materials Page Styles — Premium Design
+   ============================================================ */
+
+.materials-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  animation: fadeInUp 0.4s ease;
+}
+
+.materials-filters {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  margin-bottom: var(--space-2);
+}
+
+/* Low Stock Alert Banner (glassmorphic danger style) */
+.low-stock-banner {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: rgba(220, 38, 38, 0.08);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid rgba(220, 38, 38, 0.18);
+  border-radius: var(--radius-md);
+  color: var(--color-danger);
+  font-size: var(--text-sm);
+  animation: slideInDown 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.04);
+}
+
+.low-stock-banner__icon {
+  font-size: 1.35rem;
+  flex-shrink: 0;
+  animation: pulse 1.5s infinite;
+}
+
+.low-stock-banner__body {
+  flex: 1;
+  font-weight: var(--font-medium);
+}
+
+/* Stock column alerts */
+.stock-warning-text {
+  color: var(--color-danger);
+  font-weight: var(--font-bold);
+}
+
+.stock-alert-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background-color: var(--color-danger);
+  border-radius: 50%;
+  margin-left: var(--space-2);
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { transform: scale(0.9) opacity: 0.6; }
+  50% { transform: scale(1.25) opacity: 1; }
+  100% { transform: scale(0.9) opacity: 0.6; }
+}
+
+@keyframes slideInDown {
+  from { transform: translateY(-12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Action button grouping */
+.table-actions-cell {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Actions Dropdown styling */
+.actions-dropdown-container {
+  position: relative;
+  display: inline-block;
+}
+
+.actions-dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-dropdown);
+  z-index: 100;
+  width: 150px;
+  min-width: 150px;
+  padding: var(--space-1) 0;
+  display: flex;
+  flex-direction: column;
+  animation: dropdownFadeIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.actions-dropdown-item {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 8px 16px;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+/* Success Action (Stock In) */
+.actions-dropdown-item--success {
+  color: var(--color-success);
+}
+
+.actions-dropdown-item--success:hover {
+  background-color: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+/* Primary/Teal Action (Edit Material) */
+.actions-dropdown-item--primary {
+  color: var(--color-primary);
+}
+
+.actions-dropdown-item--primary:hover {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+/* Danger Action (Delete) */
+.actions-dropdown-item--danger {
+  color: var(--color-danger);
+}
+
+.actions-dropdown-item--danger:hover {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger);
+}
+
+.actions-dropdown-divider {
+  height: 1px;
+  background-color: var(--color-border);
+  margin: var(--space-1) 0;
+}
+
+.btn-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.btn-dots:hover,
+.btn-dots--active {
+  background-color: var(--color-surface-hover);
+  color: var(--color-primary);
+  border-color: var(--color-border);
+  outline: none;
+}
+
+.btn-dots:focus {
+  outline: none;
+}
+
+@keyframes dropdownFadeIn {
+  from { opacity: 0; transform: translateY(-8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 640px) {
+  .materials-filters {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+}
+

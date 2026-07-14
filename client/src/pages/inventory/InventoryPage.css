@@ -1,0 +1,177 @@
+/* ====================================================
+   InventoryPage.css — Unified Inventory Dashboard
+   ==================================================== */
+
+.inventory-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Header ─────────────────────────────────────────── */
+.inv-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.inv-title {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  margin: 0 0 4px 0;
+  line-height: 1.2;
+}
+
+.inv-subtitle {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+/* ── Tab Bar ─────────────────────────────────────────── */
+.inv-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 6px;
+  margin-bottom: 20px;
+  width: fit-content;
+}
+
+.inv-tab {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: calc(var(--radius-md) - 4px);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.inv-tab:hover {
+  color: var(--color-primary);
+  background: var(--color-primary-light);
+}
+
+.inv-tab--active {
+  color: var(--color-text-inverse) !important;
+  background: var(--color-primary) !important;
+  font-weight: var(--font-semibold);
+  box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.25);
+}
+
+.inv-tab--active .inv-tab__icon {
+  stroke: currentColor;
+}
+
+.inv-tab__icon {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.inv-tab:hover .inv-tab__icon {
+  transform: scale(1.1);
+}
+
+.inv-tab__label {
+  letter-spacing: 0.01em;
+}
+
+/* ── KPI Row ─────────────────────────────────────────── */
+.inv-kpi-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.inv-kpi-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 20px 24px;
+  min-width: 180px;
+  flex: 1;
+  border-left: 4px solid var(--color-border-strong);
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.inv-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+.inv-kpi-card--blue  { border-left-color: var(--color-primary); }
+.inv-kpi-card--green { border-left-color: var(--color-success); }
+.inv-kpi-card--orange{ border-left-color: var(--color-warning); }
+
+.inv-kpi-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+
+.inv-kpi-value {
+  font-size: var(--text-xl);
+  font-weight: var(--font-bold);
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+
+.inv-kpi-card--blue  .inv-kpi-value { color: var(--color-primary); }
+.inv-kpi-card--green .inv-kpi-value { color: var(--color-success); }
+.inv-kpi-card--orange .inv-kpi-value { color: var(--color-warning); }
+
+/* ── Tab Content ─────────────────────────────────────── */
+.inv-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── Animations ──────────────────────────────────────── */
+.animate-fade-in {
+  animation: invFadeIn 0.2s ease-out;
+}
+
+@keyframes invFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Responsive ──────────────────────────────────────── */
+@media (max-width: 768px) {
+  .inv-tabs {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .inv-kpi-row {
+    flex-direction: column;
+  }
+
+  .inv-kpi-card {
+    min-width: unset;
+  }
+}

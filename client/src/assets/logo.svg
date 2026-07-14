@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 120" width="100%" height="100%">
+  <!-- Logo Icon: Portal Frame representation of Precast Concrete structure -->
+  <g transform="translate(15, 10)">
+    <!-- Slab 1: Horizontal beam (teal) -->
+    <path d="M 0,20 L 70,20 L 70,35 L 0,35 Z" fill="#0A7B84" rx="2" />
+    <!-- Slab 2: Column (mint) -->
+    <path d="M 15,35 L 30,35 L 30,90 L 15,90 Z" fill="#2DD4BF" rx="2" />
+    <!-- Slab 3: Column (mint) -->
+    <path d="M 45,35 L 60,35 L 60,90 L 45,90 Z" fill="#2DD4BF" rx="2" />
+    
+    <!-- Letter forms stylized integration (GIR) -->
+    <text x="85" y="70" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="800" fill="#0A7B84">GIR</text>
+    <text x="175" y="70" font-family="Inter, system-ui, sans-serif" font-size="42" font-weight="300" fill="#1E293B">PRECAST</text>
+    
+    <!-- Subtitle -->
+    <text x="87" y="90" font-family="Inter, system-ui, sans-serif" font-size="12" font-weight="600" fill="#64748B" letter-spacing="3">MANUFACTURING CRM</text>
+  </g>
+</svg>

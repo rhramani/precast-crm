@@ -1,0 +1,24 @@
+{
+  "name": "client",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "~6.0.2",
+    "vite": "^8.1.1"
+  },
+  "dependencies": {
+    "@reduxjs/toolkit": "^2.12.0",
+    "axios": "^1.18.1",
+    "react-phone-number-input": "^3.4.17",
+    "react-redux": "^9.3.0",
+    "react-router-dom": "^7.18.1",
+    "socket.io-client": "^4.8.3",
+    "xlsx": "^0.18.5"
+  }
+}

@@ -1,0 +1,27 @@
+/* ============================================================
+   AvatarInitials — circular colored avatar with initials
+   Styles live here; also mirrored as .avatar-initials--* in
+   DataTable.css for use in inline render functions.
+   ============================================================ */
+
+.avatar-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 0.75rem;        /* 12px */
+  font-weight: var(--font-semibold);
+  color: #fff;
+  flex-shrink: 0;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  user-select: none;
+}
+
+/* 4-color rotation — emerald, blue, purple, pink */
+.avatar-initials--0 { background: #059669; }
+.avatar-initials--1 { background: #2563EB; }
+.avatar-initials--2 { background: #7C3AED; }
+.avatar-initials--3 { background: #DB2777; }

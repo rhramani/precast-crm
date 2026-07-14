@@ -1,0 +1,147 @@
+/* ============================================================
+   Precast CRM — Design System Tokens
+   Source: precast-crm-ui-theme.md § 3 (Theme)
+   Restyle: TerraVisa-inspired light teal/mint palette
+   ============================================================ */
+
+/* ── Google Fonts ─────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Public+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap');
+
+/* ── Color Palette ────────────────────────────────────────── */
+:root {
+  /* Brand — Navy Blue & Brand Orange */
+  --color-primary:          #182650;   /* GIR Dark Blue */
+  --color-primary-dark:     #0f1833;   /* Darker Navy Blue for hover/active states */
+  --color-primary-light:    #eceef4;   /* Soft Navy tint background */
+  --color-primary-rgb:      24, 38, 80; /* RGB components for transparent opacity overrides */
+
+  /* Accent — Navy Blue Theme Color */
+  --color-accent:           #182650;   /* GIR Dark Blue */
+  --color-accent-dark:      #0f1833;   /* Darker Navy Blue for hover/active states */
+  --color-accent-light:     #eceef4;   /* Soft Navy tint background */
+  --color-accent-rgb:       24, 38, 80; /* RGB components for transparent navy */
+
+  /* Org card */
+  --color-org-card-bg:      rgba(24, 38, 80, 0.06); /* Sidebar org-info card background */
+
+  /* Semantic */
+  --color-success:          #16A34A;   /* Approved / completed / in-stock text */
+  --color-success-bg:       #DCFCE7;   /* Approved / completed badge background */
+  --color-info:             #2563EB;   /* In Progress / Scheduled text */
+  --color-info-bg:          #DBEAFE;   /* In Progress / Scheduled badge background */
+  --color-warning:          #D97706;   /* Follow Up / pending text */
+  --color-warning-bg:       #FEF3C7;   /* Follow Up / pending badge background */
+  --color-danger:           #DC2626;   /* Pending Doc / overdue / alert text */
+  --color-danger-bg:        #FEE2E2;   /* Pending Doc / alert badge & card backgrounds */
+
+  /* Backward-compat aliases — pages using old token names still work */
+  --color-danger-light:     #FEE2E2;   /* alias → --color-danger-bg */
+  --color-success-light:    #DCFCE7;   /* alias → --color-success-bg */
+  --color-warning-light:    #FEF3C7;   /* alias → --color-warning-bg */
+  --color-info-light:       #DBEAFE;   /* alias → --color-info-bg */
+
+  /* Icon chip pastels — rotate per KPI card */
+  --chip-mint-bg:           #eceef4;   /* Soft Navy */
+  --chip-mint-icon:         #182650;   /* GIR Dark Blue */
+  --chip-blue-bg:           #eceef4;   /* Soft blue */
+  --chip-blue-icon:         #182650;   /* GIR Dark Blue */
+  --chip-purple-bg:         #EDE9FE;
+  --chip-purple-icon:       #7C3AED;
+  --chip-pink-bg:           #FCE7F3;
+  --chip-pink-icon:         #DB2777;
+
+  /* Neutrals */
+  --color-bg:               #e5e9f2;   /* Light version of sidebar background (#182650) */
+  --color-surface:          #FFFFFF;   /* Cards, sidebar, topbar, tables */
+  --color-surface-hover:    #f5f5f5;   /* Row hover, subtle highlight */
+  --color-border:           #E2E8F0;   /* Soft slate gray border */
+  --color-border-strong:    #CBD5E1;
+
+  /* Text */
+  --color-text-primary:     #1E293B;   /* Premium Slate 800 for body text and headers (high contrast) */
+  --color-text-secondary:   #475569;   /* Slate 600 for labels, meta text, and subtext (WCAG AA compliant) */
+  --color-text-disabled:    #94A3B8;
+  --color-text-inverse:     #FFFFFF;   /* On dark backgrounds */
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --font-family:            'Inter', 'Roboto', 'Public Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Type scale */
+  --text-xs:                0.6875rem; /* 11px */
+  --text-sm:                0.875rem;  /* 14px */
+  --text-base:              1rem;      /* 16px */
+  --text-lg:                1.25rem;   /* 20px */
+  --text-xl:                1.5rem;    /* 24px */
+  --text-2xl:               1.75rem;   /* 28px */
+
+  /* Font weights */
+  --font-regular:           400;
+  --font-medium:            500;
+  --font-semibold:          600;
+  --font-bold:              700;
+
+  /* Table header letter spacing */
+  --table-header-spacing:   0.04em;
+
+  /* ── Spacing Scale (4px base) ───────────────────────────── */
+  --space-1:                4px;
+  --space-2:                8px;
+  --space-3:                12px;
+  --space-4:                16px;
+  --space-5:                20px;
+  --space-6:                24px;
+  --space-8:                32px;
+  --space-12:               48px;
+
+
+  /* ── Border Radius ──────────────────────────────────────── */
+  --radius-sm:              10px;  /* Inputs, buttons */
+  --radius-md:              16px;  /* Cards */
+  --radius-lg:              20px;  /* Modals, drawers, avatar/icon-chip circles */
+
+  /* ── Shadows ────────────────────────────────────────────── */
+  --shadow-card:            0 2px 8px rgba(0, 0, 0, 0.04), 0 10px 30px rgba(0, 0, 0, 0.03);
+  --shadow-drawer:          0 8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-modal:           0 8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-dropdown:        0 8px 24px rgba(0, 0, 0, 0.06);
+  --shadow-topbar:          0 2px 8px rgba(0, 0, 0, 0.03);
+
+  /* ── Layout Dimensions ──────────────────────────────────── */
+  --sidebar-width:          260px;
+  --sidebar-collapsed-width: 64px;
+  --topbar-height:          60px;
+  --topbar-height-mobile:   56px;
+  --page-padding-mobile:    12px;
+
+  /* ── Table Density ──────────────────────────────────────── */
+  --table-row-height:       44px;  /* Airy, uncluttered per spec §3.6 */
+
+  /* ── Transitions ────────────────────────────────────────── */
+  --transition-fast:        150ms ease;
+  --transition-base:        250ms ease;
+  --transition-slow:        350ms ease;
+
+  /* ── Z-Index Scale ──────────────────────────────────────── */
+  --z-sidebar:              100;
+  --z-topbar:               200;
+  --z-drawer:               300;
+  --z-modal:                400;
+  --z-toast:                500;
+
+  /* ── Premium Styling (Glassmorphism, Gradients, Shadows & Transitions) ── */
+  --glass-bg:               rgba(255, 255, 255, 0.65);
+  --glass-border:           rgba(var(--color-primary-rgb), 0.08);
+  --glass-blur:             blur(16px) saturate(120%);
+  --gradient-primary:       linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  --gradient-premium:       linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+  --gradient-glow:          0 8px 32px 0 rgba(var(--color-primary-rgb), 0.08);
+  --shadow-premium:         0 8px 30px rgba(var(--color-primary-rgb), 0.04);
+  --transition-bounce:      all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --topbar-height: var(--topbar-height-mobile);
+    --space-6: 16px; /* Dynamically scale down large spaces */
+  }
+}
