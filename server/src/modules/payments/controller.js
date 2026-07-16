@@ -1,8 +1,8 @@
 const paymentService = require('./service');
 
 const list = async (req, res) => {
-  const { page, limit, search } = req.query;
-  const result = await paymentService.listPayments(req.branchFilter, { page, limit, search });
+  const { page, limit, search, customerId } = req.query;
+  const result = await paymentService.listPayments(req.branchFilter, { page, limit, search, customerId });
   res.json({ success: true, data: { payments: result.payments }, meta: result.meta });
 };
 

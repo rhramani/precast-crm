@@ -42,10 +42,25 @@ const remove = async (req, res) => {
   res.json({ success: true, message: 'Product deleted successfully' });
 };
 
+const getOne = async (req, res) => {
+  const product = await productService.getProduct(req.params.id, req.branchFilter);
+  res.json({ success: true, data: { product } });
+};
+
+// Returns distinct category values that actually exist in Product Master for this branch
+const getCategories = async (req, res) => {
+  const Product = require('./model');
+  const categories = await Product.distinct('category', { ...req.branchFilter, status: 'active' });
+  res.json({ success: true, data: { categories } });
+};
+
 module.exports = {
   list,
+  getOne,
+  getCategories,
   create,
   update,
   updateStatus,
   remove,
 };
+

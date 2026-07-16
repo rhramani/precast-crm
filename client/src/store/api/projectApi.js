@@ -72,6 +72,10 @@ export const projectApi = apiSlice.injectEndpoints({
       ],
     }),
 
+    getCombinedRequirements: builder.query({
+      query: (projectId) => `/projects/${projectId}/combined-requirements`,
+    }),
+
     deleteProject: builder.mutation({
       query: (id) => ({ url: `/projects/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Project'],
@@ -98,6 +102,7 @@ export const {
   useUpdateSiteMutation,
   useUpdateSiteStatusMutation,
   useCalculateSiteRequirementsMutation,
+  useLazyGetCombinedRequirementsQuery,
   useDeleteProjectMutation,
   useDeleteSiteMutation,
 } = projectApi;

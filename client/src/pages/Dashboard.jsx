@@ -1,4 +1,21 @@
 import { useState } from 'react';
+import {
+  Eye,
+  Factory,
+  Clock,
+  DollarSign,
+  TrendingUp,
+  Package,
+  Building2,
+  Users,
+  FolderOpen,
+  TrendingDown,
+  Layers,
+  Contact,
+  AlertTriangle,
+  CheckCircle,
+  ClipboardCheck,
+} from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { Link, useNavigate } from 'react-router-dom';
 import { selectCurrentUser, selectCurrentRole } from '../store/slices/authSlice';
@@ -97,7 +114,7 @@ const Dashboard = () => {
   const { data: labourListRes } = useGetLabourersQuery({ limit: 100 });
 
   // Greetings banner values
-  const greetingName = user?.name || 'Patel';
+  const greetingName = user?.name || user?.branchName || 'Patel';
   const currentBranchName = currentBranch?.branchName || 'All Branches';
   const displayDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -139,7 +156,7 @@ const Dashboard = () => {
       value: `${totalProductionToday.toLocaleString('en-IN')} Units`,
       delta: 0,
       trendText: 'all-time',
-      icon: '🏭',
+      icon: <Factory size={20} />,
       chipIndex: 0,
     },
     {
@@ -147,7 +164,7 @@ const Dashboard = () => {
       value: avgLeadTimeText,
       delta: 0,
       trendText: 'all-time',
-      icon: '🕒',
+      icon: <Clock size={20} />,
       chipIndex: 1,
     },
     {
@@ -155,7 +172,7 @@ const Dashboard = () => {
       value: formatCurrency(totalRevenueVal),
       delta: 0,
       trendText: 'all-time',
-      icon: '💰',
+      icon: <DollarSign size={20} />,
       chipIndex: 2,
     },
     {
@@ -163,7 +180,7 @@ const Dashboard = () => {
       value: `${efficiencyPercent.toFixed(1)}%`,
       delta: 0,
       trendText: 'all-time',
-      icon: '📈',
+      icon: <TrendingUp size={20} />,
       chipIndex: 3,
     },
   ];
@@ -359,17 +376,17 @@ const Dashboard = () => {
     const totalInventoryValue = rawValuation + fgValuation;
 
     const row1KPIs = [
-      { label: 'TOTAL SALES (REVENUE)', value: formatCurrency(totalSales), icon: '💰', colorIdx: 2 },
-      { label: 'CONSOLIDATED PROFIT',   value: formatCurrency(netProfit), icon: '📈', colorIdx: 3 },
-      { label: 'TOTAL PRODUCTION',      value: `${totalProduction.toLocaleString('en-IN')} Units`, icon: '🏭', colorIdx: 0 },
-      { label: 'TOTAL INVENTORY VALUE', value: formatCurrency(totalInventoryValue), icon: '📦', colorIdx: 1 },
+      { label: 'TOTAL SALES (REVENUE)', value: formatCurrency(totalSales), icon: <DollarSign size={20} />, colorIdx: 2 },
+      { label: 'CONSOLIDATED PROFIT',   value: formatCurrency(netProfit), icon: <TrendingUp size={20} />, colorIdx: 3 },
+      { label: 'TOTAL PRODUCTION',      value: `${totalProduction.toLocaleString('en-IN')} Units`, icon: <Factory size={20} />, colorIdx: 0 },
+      { label: 'TOTAL INVENTORY VALUE', value: formatCurrency(totalInventoryValue), icon: <Package size={20} />, colorIdx: 1 },
     ];
 
     const row2KPIs = [
-      { label: 'TOTAL BRANCHES',        value: `${activeBranches} Active / ${totalBranches}`, icon: '🏢', colorIdx: 0 },
-      { label: 'ACTIVE CUSTOMERS',      value: `${customersCount} Accounts`, icon: '👥', colorIdx: 2 },
-      { label: 'ACTIVE PROJECTS',       value: `${projectsCount} Contracts`, icon: '🏗️', colorIdx: 1 },
-      { label: 'OPERATING COSTS',       value: formatCurrency(totalCosts), icon: '📉', colorIdx: 3 },
+      { label: 'TOTAL BRANCHES',        value: `${activeBranches} Active / ${totalBranches}`, icon: <Building2 size={20} />, colorIdx: 0 },
+      { label: 'ACTIVE CUSTOMERS',      value: `${customersCount} Accounts`, icon: <Users size={20} />, colorIdx: 2 },
+      { label: 'ACTIVE PROJECTS',       value: `${projectsCount} Contracts`, icon: <FolderOpen size={20} />, colorIdx: 1 },
+      { label: 'OPERATING COSTS',       value: formatCurrency(totalCosts), icon: <TrendingDown size={20} />, colorIdx: 3 },
     ];
 
     // Global Low stock items
@@ -387,7 +404,7 @@ const Dashboard = () => {
         <div className="dashboard-v2__welcome-banner">
           <div className="dashboard-v2__welcome-left">
             <div className="dashboard-v2__context-pill">
-              <span className="dashboard-v2__context-icon">🏢</span>
+              <span className="dashboard-v2__context-icon" style={{ display: 'flex', alignItems: 'center' }}><Building2 size={14} /></span>
               <span>All Branches Consolidated Monitor</span>
             </div>
             <h1 className="dashboard-v2__welcome-title">Welcome back, {greetingName}!</h1>
@@ -438,7 +455,7 @@ const Dashboard = () => {
           {/* Left: Branch performance table */}
           <div className="dashboard-v2__card" style={{ flex: 2, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: 24 }}>
             <div className="dashboard-v2__card-header" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h2 className="dashboard-v2__card-title" style={{ margin: 0 }}>BRANCH PERFORMANCE BREAKDOWN</h2>
+              <h2 className="dashboard-v2__card-title" style={{ margin: 0 }}>Branch Performance Breakdown</h2>
               <span style={{
                 fontWeight: 600,
                 fontSize: 'var(--text-sm)',
@@ -505,7 +522,7 @@ const Dashboard = () => {
           {/* Right: Low Stock alerts */}
           <div className="dashboard-v2__card dashboard-v2__card--alerts" style={{ flex: 1, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: 24 }}>
             <div className="dashboard-v2__card-header" style={{ marginBottom: 20 }}>
-              <h2 className="dashboard-v2__card-title">PENDING STOCK ALERTS</h2>
+              <h2 className="dashboard-v2__card-title">Pending Stock Alerts</h2>
               <span className="badge-critical-count" style={{
                 background: 'var(--color-danger-bg)',
                 color: 'var(--color-danger)',
@@ -521,7 +538,7 @@ const Dashboard = () => {
             <div className="critical-alerts-list">
               {lowStockAlertItems.map((item, idx) => (
                 <div className="critical-alert-item" key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderBottom: '1px solid var(--color-border)' }}>
-                  <div className="critical-alert-icon" style={{ fontSize: 20 }}>⚠️</div>
+                  <div className="critical-alert-icon" style={{ display: 'flex', alignItems: 'center', color: 'var(--color-danger)' }}><AlertTriangle size={18} /></div>
                   <div className="critical-alert-details" style={{ flex: 1 }}>
                     <div className="critical-alert-name" style={{ fontWeight: 'var(--font-medium)', fontSize: 'var(--text-sm)' }}>{item.materialName}</div>
                     <div className="critical-alert-meta" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>{item.infoText}</div>
@@ -552,7 +569,7 @@ const Dashboard = () => {
       <div className="dashboard-v2__welcome-banner">
         <div className="dashboard-v2__welcome-left">
           <div className="dashboard-v2__context-pill">
-            <span className="dashboard-v2__context-icon">🏢</span>
+            <span className="dashboard-v2__context-icon" style={{ display: 'flex', alignItems: 'center' }}><Building2 size={14} /></span>
             <span>{currentBranchName} Overview</span>
           </div>
           <h1 className="dashboard-v2__welcome-title">Welcome back, {greetingName}!</h1>
@@ -599,7 +616,7 @@ const Dashboard = () => {
             label: 'RAW MATERIAL STOCK',
             value: `${rawMatInStock} / ${rawMatTotal}`,
             sub: `₹${Number(totalRawQtyValue).toLocaleString('en-IN')} value`,
-            icon: '🪨',
+            icon: <Layers size={20} />,
             color: rawMatInStock < rawMatTotal ? 'var(--color-warning)' : 'var(--color-success)',
             link: '/raw-materials',
             linkLabel: 'Manage Stock',
@@ -608,7 +625,7 @@ const Dashboard = () => {
             label: 'FINISHED GOODS IN STOCK',
             value: `${totalFGStock.toLocaleString('en-IN')} Units`,
             sub: `${fgCategories} product type(s) available`,
-            icon: '📦',
+            icon: <ClipboardCheck size={20} />,
             color: 'var(--color-primary)',
             link: '/inventory/finished-goods',
             linkLabel: 'View Inventory',
@@ -617,7 +634,7 @@ const Dashboard = () => {
             label: 'ACTIVE LABOURERS',
             value: `${activeLabourers} Workers`,
             sub: 'Available for deployment',
-            icon: '👷',
+            icon: <Contact size={20} />,
             color: 'var(--color-accent)',
             link: '/labour',
             linkLabel: 'View Labour',
@@ -626,7 +643,7 @@ const Dashboard = () => {
             label: 'LOW STOCK ALERTS',
             value: lowStockMats > 0 ? `${lowStockMats} Materials` : 'All Healthy ✓',
             sub: lowStockMats > 0 ? 'Below minimum threshold' : 'No action needed',
-            icon: lowStockMats > 0 ? '⚠️' : '✅',
+            icon: lowStockMats > 0 ? <AlertTriangle size={20} /> : <CheckCircle size={20} />,
             color: lowStockMats > 0 ? 'var(--color-danger)' : 'var(--color-success)',
             link: '/raw-materials',
             linkLabel: 'Check Materials',
@@ -658,7 +675,7 @@ const Dashboard = () => {
                   <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                     {kpi.label}
                   </span>
-                  <span style={{ fontSize: '20px' }}>{kpi.icon}</span>
+                  <span style={{ display: 'flex', alignItems: 'center', color: kpi.color }}>{kpi.icon}</span>
                 </div>
                 <div style={{ fontSize: '1.4rem', fontWeight: 700, color: kpi.color, lineHeight: 1.2 }}>
                   {kpi.value}
@@ -681,7 +698,7 @@ const Dashboard = () => {
         <div className="dashboard-v2__card dashboard-v2__card--chart">
           <div className="dashboard-v2__card-header">
             <div>
-              <h2 className="dashboard-v2__card-title">PRODUCTION PERFORMANCE OVERVIEW</h2>
+              <h2 className="dashboard-v2__card-title">Production Performance Overview</h2>
              <div className="dashboard-v2__chart-highlight">
                 <span className="dashboard-v2__chart-value">{formatCurrency(totalRevenueVal)}</span>
                 <span className={`dashboard-v2__chart-delta ${revenueDeltaIsUp ? '' : 'dashboard-v2__chart-delta--down'}`}>
@@ -813,7 +830,7 @@ const Dashboard = () => {
         {/* Right: Top Precast Products card */}
         <div className="dashboard-v2__card dashboard-v2__card--products">
           <div className="dashboard-v2__card-header">
-            <h2 className="dashboard-v2__card-title">TOP PRECAST PRODUCTS</h2>
+            <h2 className="dashboard-v2__card-title">Top Precast Products</h2>
             <div className="dashboard-v2__actions">
               <select className="dashboard-v2__select">
                 <option>Monthly</option>
@@ -830,8 +847,8 @@ const Dashboard = () => {
             ) : (
               topProducts.map((prod, idx) => (
                 <div className="top-product-item" key={idx}>
-                  <div className="top-product-item__icon-box">
-                    {idx === 0 ? '🏢' : idx === 1 ? '📦' : '🏗️'}
+                  <div className="top-product-item__icon-box" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {idx === 0 ? <Building2 size={16} style={{ color: 'var(--color-primary)' }} /> : idx === 1 ? <Package size={16} style={{ color: 'var(--color-primary)' }} /> : <Layers size={16} style={{ color: 'var(--color-primary)' }} />}
                   </div>
                   <div className="top-product-item__details">
                     <div className="top-product-item__name">{prod.productName}</div>
@@ -869,7 +886,7 @@ const Dashboard = () => {
         {/* Left: Finished goods inventory stock share */}
         <div className="dashboard-v2__card dashboard-v2__card--branch-stats">
           <div className="dashboard-v2__card-header">
-            <h2 className="dashboard-v2__card-title">FINISHED GOODS STOCK SHARE</h2>
+            <h2 className="dashboard-v2__card-title">Finished Goods Stock Share</h2>
             <div className="dashboard-v2__actions">
               <select className="dashboard-v2__select">
                 <option>Value Share</option>
@@ -906,7 +923,7 @@ const Dashboard = () => {
         <div className="dashboard-v2__card dashboard-v2__card--hourly">
           <div className="dashboard-v2__card-header">
             <div>
-              <h2 className="dashboard-v2__card-title">HOURLY PRODUCTION PATTERN</h2>
+              <h2 className="dashboard-v2__card-title">Hourly Production Pattern</h2>
               <div className="dashboard-v2__chart-highlight">
                 <span className="dashboard-v2__chart-value">{totalProductionToday.toLocaleString('en-IN')} Units Total</span>
                 <span className={`dashboard-v2__chart-delta ${prodDeltaIsUp ? '' : 'dashboard-v2__chart-delta--down'}`}>
@@ -1035,7 +1052,7 @@ const Dashboard = () => {
       {/* Recent Dispatches table section */}
       <div className="dashboard-v2__card dashboard-v2__table-card">
         <div className="dashboard-v2__card-header">
-          <h2 className="dashboard-v2__card-title">RECENT DISPATCH CASES</h2>
+          <h2 className="dashboard-v2__card-title">Recent Dispatch Cases</h2>
           <Link to="/dispatch" className="dashboard-v2__link-action">
             View All Dispatches
           </Link>
@@ -1045,12 +1062,12 @@ const Dashboard = () => {
           <table className="dashboard-v2__table">
             <thead>
               <tr>
-                <th>CLIENT NAME / PROJECT</th>
-                <th>DISPATCH SITE</th>
-                <th>DISPATCH NO.</th>
-                <th>STATUS</th>
-                <th>LAST UPDATE</th>
-                <th>ACTION</th>
+                <th>Client Name / Project</th>
+                <th>Dispatch Site</th>
+                <th>Dispatch No.</th>
+                <th>Status</th>
+                <th>Last Update</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -1105,10 +1122,7 @@ const Dashboard = () => {
                             title="View"
                             onClick={() => navigate(`/dispatch`)}
                           >
-                            <svg viewBox="0 0 24 24" style={{ fill: 'none', stroke: 'currentColor', strokeWidth: 2, width: 14, height: 14 }}>
-                              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                              <circle cx="12" cy="12" r="3" />
-                            </svg>
+                            <Eye size={14} />
                           </button>
                         </div>
                       </td>
@@ -1126,7 +1140,7 @@ const Dashboard = () => {
         {/* Left: Upcoming Installations */}
         <div className="dashboard-v2__card dashboard-v2__card--upcoming">
           <div className="dashboard-v2__card-header">
-            <h2 className="dashboard-v2__card-title">UPCOMING INSTALLATIONS</h2>
+            <h2 className="dashboard-v2__card-title">Upcoming Installations</h2>
             <Link to="/installation" className="dashboard-v2__link-action">
               View Calendar
             </Link>
@@ -1162,7 +1176,7 @@ const Dashboard = () => {
         {/* Right: Low Stock & Critical alerts */}
         <div className="dashboard-v2__card dashboard-v2__card--alerts">
           <div className="dashboard-v2__card-header">
-            <h2 className="dashboard-v2__card-title">PENDING STOCK ALERTS</h2>
+            <h2 className="dashboard-v2__card-title">Pending Stock Alerts</h2>
             <span className="badge-critical-count">
               {rawLowStockCount} CRITICAL
             </span>
@@ -1176,7 +1190,7 @@ const Dashboard = () => {
             ) : (
               lowStockAlertItems.map((item, idx) => (
                 <div className="critical-alert-item" key={idx}>
-                  <div className="critical-alert-icon">⚠️</div>
+                  <div className="critical-alert-icon" style={{ display: 'flex', alignItems: 'center', color: 'var(--color-danger)' }}><AlertTriangle size={18} /></div>
                   <div className="critical-alert-details">
                     <div className="critical-alert-name">{item.materialName}</div>
                     <div className="critical-alert-meta">{item.infoText}</div>

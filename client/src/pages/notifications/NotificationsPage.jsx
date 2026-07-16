@@ -4,6 +4,13 @@ import {
   useMarkAllNotificationsReadMutation,
 } from '../../store/api/notificationApi';
 import StatusBadge from '../../components/ui/StatusBadge';
+import {
+  Bell,
+  AlertTriangle,
+  FileText,
+  DollarSign,
+  CheckCircle,
+} from 'lucide-react';
 
 const NotificationsPage = () => {
   const { data, isLoading } = useGetNotificationsQuery();
@@ -32,15 +39,15 @@ const NotificationsPage = () => {
   const getTypeStyles = (type) => {
     switch (type) {
       case 'low_stock':
-        return { borderLeft: '4px solid var(--color-danger)', icon: '⚠️' };
+        return { borderLeft: '4px solid var(--color-danger)', icon: <AlertTriangle size={18} style={{ color: 'var(--color-danger)' }} /> };
       case 'quote_accepted':
-        return { borderLeft: '4px solid var(--color-success)', icon: '📄' };
+        return { borderLeft: '4px solid var(--color-success)', icon: <FileText size={18} style={{ color: 'var(--color-success)' }} /> };
       case 'payment_received':
-        return { borderLeft: '4px solid var(--color-accent)', icon: '💸' };
+        return { borderLeft: '4px solid var(--color-accent)', icon: <DollarSign size={18} style={{ color: 'var(--color-accent)' }} /> };
       case 'site_completed':
-        return { borderLeft: '4px solid var(--color-success)', icon: '✅' };
+        return { borderLeft: '4px solid var(--color-success)', icon: <CheckCircle size={18} style={{ color: 'var(--color-success)' }} /> };
       default:
-        return { borderLeft: '4px solid var(--color-text-secondary)', icon: '🔔' };
+        return { borderLeft: '4px solid var(--color-text-secondary)', icon: <Bell size={18} style={{ color: 'var(--color-text-secondary)' }} /> };
     }
   };
 
@@ -69,7 +76,7 @@ const NotificationsPage = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {notifications.length === 0 ? (
             <div className="card" style={{ background: 'var(--color-surface)', padding: '40px', textAlign: 'center', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-              <span style={{ fontSize: '2rem' }}>🔔</span>
+              <span style={{ display: 'block', opacity: 0.5, marginBottom: '16px' }}><Bell size={40} style={{ margin: '0 auto' }} /></span>
               <h3 style={{ margin: '16px 0 8px 0', color: 'var(--color-text-secondary)' }}>All caught up!</h3>
               <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)' }}>
                 No active notifications or alerts in your feed.
@@ -95,7 +102,7 @@ const NotificationsPage = () => {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <span style={{ fontSize: '1.25rem' }}>{styles.icon}</span>
+                  <span style={{ display: 'flex', alignItems: 'center' }}>{styles.icon}</span>
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <strong style={{ fontSize: 'var(--text-sm)' }}>{item.title}</strong>

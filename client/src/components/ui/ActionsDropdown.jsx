@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { MoreVertical } from 'lucide-react';
 
 const ActionsDropdown = ({ actions }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,11 +63,7 @@ const ActionsDropdown = ({ actions }) => {
         aria-label="Actions"
         title="Actions"
       >
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="1.5" fill="currentColor" />
-          <circle cx="12" cy="5" r="1.5" fill="currentColor" />
-          <circle cx="12" cy="19" r="1.5" fill="currentColor" />
-        </svg>
+        <MoreVertical size={18} />
       </button>
       
       {isOpen && createPortal(

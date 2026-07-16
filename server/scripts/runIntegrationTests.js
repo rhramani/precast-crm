@@ -192,6 +192,24 @@ async function runTests() {
     logSuccess('Branch email duplication check passed (threw validation error)');
   }
 
+  // Test update branch (verifying branchCode is allowed and not rejected by schema validation)
+  const updateBranchRes = await request(`/branches/${testBranchId}`, {
+    method: 'PUT',
+    token: superAdminToken,
+    body: {
+      branchName: 'Noida Factory Updated',
+      branchCode: 'NOI01',
+      address: 'Industrial Area Sector 62 Noida',
+      contactPerson: 'Mr. Vivek Singh',
+      mobileNumber: '+919876543210',
+      gstNumber: '09AAAAA1111A1Z1',
+      email: 'noida@girprecast.com',
+    },
+  });
+  assert(updateBranchRes.success === true, 'Branch update failed');
+  assert(updateBranchRes.data.branch.branchName === 'Noida Factory Updated', 'Branch name should be updated');
+  logSuccess('Branch update with branchCode payload passed');
+
   // 3. BRANCH LOGIN
   logHeader('Test 3: Branch Login & Session Verification');
   
@@ -276,6 +294,12 @@ async function runTests() {
   productId = createProductRes.data.product._id;
   logSuccess(`Product created. ID: ${productId}`);
 
+  // Verify Single Product GET Endpoint
+  const getProductRes = await request(`/products/${productId}`, { token: branchUserToken });
+  assert(getProductRes.success === true, 'GET single product endpoint failed');
+  assert(getProductRes.data.product.productName === 'Precast compound wall panel 6ft', 'Unexpected product details returned');
+  logSuccess(`Verified GET single product endpoint.`);
+
   // Create Bill of Materials (BOM)
   const createBomRes = await request('/bom', {
     method: 'POST',
@@ -348,7 +372,7 @@ async function runTests() {
   const completeOrderRes = await request(`/production/${productionOrderId}/complete`, {
     method: 'POST',
     token: branchUserToken,
-    body: { producedQuantity: 10, remarks: 'All panels manufactured and cured' },
+    body: { producedQuantity: 10, damagedQuantity: 2, remarks: 'All panels manufactured and cured' },
   });
   assert(completeOrderRes.success === true, 'Failed to complete production order');
   logSuccess('Production completion transaction finished successfully');
@@ -361,8 +385,9 @@ async function runTests() {
   // Verify finished goods inventory updated
   const fgInventory = await FinishedGoods.findOne({ productId, branchId: testBranchId });
   assert(fgInventory !== null, 'Finished goods inventory record must exist');
-  assert(fgInventory.availableStock === 10, `Expected 10 available stock, got ${fgInventory.availableStock}`);
-  logSuccess(`Verified finished goods inventory increment (Available Panels: ${fgInventory.availableStock})`);
+  assert(fgInventory.availableStock === 8, `Expected 8 available stock, got ${fgInventory.availableStock}`);
+  assert(fgInventory.damagedStock === 2, `Expected 2 damaged stock, got ${fgInventory.damagedStock}`);
+  logSuccess(`Verified finished goods inventory increment (Available Panels: ${fgInventory.availableStock}, Damaged: ${fgInventory.damagedStock})`);
 
   // 8. CUSTOMERS, PROJECTS & SITES
   logHeader('Test 8: Customers, Projects & Sites Management');

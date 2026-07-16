@@ -19,6 +19,9 @@ const completeOrderSchema = Joi.object({
   producedQuantity: Joi.number().integer().min(0).required().messages({
     'number.min': 'Produced quantity cannot be negative',
   }),
+  damagedQuantity: Joi.number().integer().min(0).allow('', null).messages({
+    'number.min': 'Damaged quantity cannot be negative',
+  }),
   remarks: Joi.string().trim().allow('', null),
 });
 

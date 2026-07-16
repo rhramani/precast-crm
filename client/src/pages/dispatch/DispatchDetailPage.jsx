@@ -5,6 +5,7 @@ import {
   useConfirmDeliveryMutation,
 } from '../../store/api/dispatchApi';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { Truck, CheckCircle2, Printer, ArrowLeft } from 'lucide-react';
 
 const DispatchDetailPage = () => {
   const { id } = useParams();
@@ -58,22 +59,22 @@ const DispatchDetailPage = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '900px', margin: '0 auto' }}>
       {/* Controls Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'var(--color-surface)', padding: '16px 24px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-        <button onClick={() => navigate('/dispatch')} className="btn btn--secondary">
-          ← Back to Logs
+        <button onClick={() => navigate('/dispatch')} className="btn btn--secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+          <ArrowLeft size={16} /> Back to Logs
         </button>
         <div style={{ display: 'flex', gap: '12px' }}>
           {dispatchData.status === 'draft' && (
-            <button onClick={handleShip} className="btn btn--success" disabled={isShipping}>
-              {isShipping ? 'Shipping...' : '🚛 Ship Vehicle'}
+            <button onClick={handleShip} className="btn btn--success" disabled={isShipping} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Truck size={16} /> {isShipping ? 'Shipping...' : 'Ship Vehicle'}
             </button>
           )}
           {dispatchData.status === 'dispatched' && (
-            <button onClick={handleDeliver} className="btn btn--success" disabled={isDelivering}>
-              {isDelivering ? 'Delivering...' : '✓ Confirm Delivery'}
+            <button onClick={handleDeliver} className="btn btn--success" disabled={isDelivering} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={16} /> {isDelivering ? 'Delivering...' : 'Confirm Delivery'}
             </button>
           )}
-          <button onClick={() => window.print()} className="btn btn--secondary">
-            🖨️ Print Challan
+          <button onClick={() => window.print()} className="btn btn--secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <Printer size={16} /> Print Challan
           </button>
         </div>
       </div>

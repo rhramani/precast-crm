@@ -125,6 +125,8 @@ const EquipmentPage = () => {
     setAllocateDrawerOpen(true);
   };
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api/v1';
+
   const handleProjectChange = async (projectId) => {
     setAllocationForm((prev) => ({ ...prev, projectId, siteId: '' }));
     if (!projectId) {
@@ -132,11 +134,17 @@ const EquipmentPage = () => {
       return;
     }
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/sites`);
+      const res = await fetch(`${API_BASE}/projects/${projectId}/sites`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to load project sites');
+      }
       const body = await res.json();
       setProjectSites(body?.data?.sites || []);
     } catch (err) {
-      console.error('Failed to load project sites', err);
+      alert(err.message || 'Failed to load project sites');
     }
   };
 
@@ -220,11 +228,11 @@ const EquipmentPage = () => {
   const columns = [
     { key: 'name', label: 'Equipment Name', sortable: true },
     { key: 'type', label: 'Machinery Type', render: (val) => TYPE_MAP[val] || val },
-    { key: 'ratePerDay', label: 'Daily Rate (Rent)', render: (val) => `₹${val?.toLocaleString()}` },
+    { key: 'ratePerDay', label: 'Daily Cost Rate (₹)', render: (val) => `₹${val?.toLocaleString()}` },
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'allocatedTo',
-      label: 'Deploy Location',
+      label: 'Deployment Location',
       render: (val, row) => (
         val ? (
           <span style={{ fontSize: '12px' }}>
@@ -325,7 +333,7 @@ const EquipmentPage = () => {
         {validationErrors.general && <div className="field-error">{validationErrors.general}</div>}
 
         <div className="field-group">
-          <label className="field-label field-label--required">Equipment Name / Registration #</label>
+          <label className="field-label field-label--required">Equipment Name / Registration No.</label>
           <input
             type="text"
             className="field-input"
@@ -351,7 +359,7 @@ const EquipmentPage = () => {
         </div>
 
         <div className="field-group">
-          <label className="field-label field-label--required">Daily Allocation Cost Rate (₹)</label>
+          <label className="field-label field-label--required">Daily Cost Rate (₹)</label>
           <input
             type="number"
             className="field-input"

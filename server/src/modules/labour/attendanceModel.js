@@ -21,6 +21,16 @@ const labourAttendanceSchema = new mongoose.Schema(
       enum: ['present', 'absent', 'half_day'],
       default: 'present',
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      default: null,
+    },
+    siteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Site',
+      default: null,
+    },
     remarks: {
       type: String,
       trim: true,

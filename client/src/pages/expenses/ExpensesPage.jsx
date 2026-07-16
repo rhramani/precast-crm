@@ -52,6 +52,8 @@ const ExpensesPage = () => {
   // Dynamic project sites lookup
   const [projectSites, setProjectSites] = useState([]);
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api/v1';
+
   const handleProjectChange = async (projectId) => {
     setForm((prev) => ({ ...prev, projectId, siteId: '' }));
     if (!projectId) {
@@ -59,15 +61,22 @@ const ExpensesPage = () => {
       return;
     }
     try {
-      const response = await fetch(`/api/v1/projects/${projectId}/sites`, {
+      const response = await fetch(`${API_BASE}/projects/${projectId}/sites`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to load project sites');
+      }
       const resData = await response.json();
       if (resData.success) {
         setProjectSites(resData.data.sites || []);
+      } else {
+        throw new Error(resData.message || 'Failed to load project sites');
       }
     } catch (e) {
       setProjectSites([]);
+      alert(e.message || 'Failed to load project sites');
     }
   };
 
@@ -130,14 +139,14 @@ const ExpensesPage = () => {
   const columns = [
     { key: 'expenseCategory', label: 'Expense Category', render: (val) => val.toUpperCase().replace('_', ' ') },
     { key: 'projectId', label: 'Project Name', render: (val) => val?.projectName || '—' },
-    { key: 'siteId', label: 'Laying Site', render: (val) => val?.siteName || '—' },
+    { key: 'siteId', label: 'Project Site', render: (val) => val?.siteName || '—' },
     { key: 'amount', label: 'Expense Amount (₹)', render: (val) => `₹${val.toLocaleString()}` },
     {
       key: 'expenseDate',
       label: 'Expense Date',
       render: (val) => new Date(val).toLocaleDateString(),
     },
-    { key: 'description', label: 'Remarks Description' },
+    { key: 'description', label: 'Remarks / Description' },
     {
       key: 'actions',
       label: 'Actions',
@@ -154,7 +163,7 @@ const ExpensesPage = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <DataTable
-        title="Direct site expenditure directory"
+        title="Direct Site Expenditure Directory"
         columns={columns}
         data={expenses}
         total={data?.meta?.total || 0}
@@ -166,7 +175,7 @@ const ExpensesPage = () => {
         isLoading={isLoading}
         actions={
           <button onClick={handleOpenAdd} className="btn btn--primary">
-            + Log site Expense
+            + Log Site Expense
           </button>
         }
       />
@@ -201,7 +210,7 @@ const ExpensesPage = () => {
           </div>
 
           <div className="field-group">
-            <label className="field-label field-label--required">Laying Site</label>
+            <label className="field-label field-label--required">Project Site</label>
             <select
               className="field-select"
               value={form.siteId}

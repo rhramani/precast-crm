@@ -27,6 +27,7 @@ const createProductSchema = Joi.object({
   unit:        Joi.string().trim().required(),
   description: Joi.string().trim().allow('', null),
   branchId:    Joi.string().trim().allow('', null),
+  sellingPrice: Joi.number().min(0).default(0),
 });
 
 const updateProductSchema = Joi.object({
@@ -54,6 +55,7 @@ const updateProductSchema = Joi.object({
   unit:        Joi.string().trim(),
   description: Joi.string().trim().allow('', null),
   branchId:    Joi.string().trim().allow('', null),
+  sellingPrice: Joi.number().min(0),
 });
 
 const statusSchema = Joi.object({

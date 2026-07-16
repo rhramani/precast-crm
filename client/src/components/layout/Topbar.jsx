@@ -9,6 +9,7 @@ import { useLogoutMutation } from '../../store/api/authApi';
 import { useGetBranchesQuery } from '../../store/api/branchApi';
 import { useGetSettingsQuery } from '../../store/api/settingsApi';
 import defaultLogo from '../../assets/logo.svg';
+import { Menu, Building2, User, ChevronDown, LogOut } from 'lucide-react';
 import './Topbar.css';
 
 const Topbar = () => {
@@ -48,7 +49,6 @@ const Topbar = () => {
   // Fetch dynamic branding/logo settings
   const { data: settingsRes } = useGetSettingsQuery();
   const systemSettings = settingsRes?.data;
-  const companyName = systemSettings?.companyName || 'GIR Precast';
   const logo = systemSettings?.logo || '';
 
   const handleLogout = async () => {
@@ -85,22 +85,18 @@ const Topbar = () => {
             onClick={() => dispatch(toggleSidebar())}
             aria-label="Toggle sidebar"
           >
-            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
+            <Menu size={20} />
           </button>
           
           {/* Branch switcher (super admin only) */}
           {role === 'super_admin' && (
             <div className="topbar__branch-switcher-wrapper" ref={branchDropdownRef} style={{ position: 'relative' }}>
               <div className="topbar__branch-switcher" onClick={() => setBranchDropdownOpen(!branchDropdownOpen)}>
-                <span className="topbar__branch-icon">🏢</span>
+                <span className="topbar__branch-icon"><Building2 size={14} /></span>
                 <span className="topbar__branch-label">
                   {currentBranch?.branchName || 'All Branches'}
                 </span>
-                <span className="topbar__branch-caret">▾</span>
+                <ChevronDown size={12} className="topbar__branch-caret" />
               </div>
 
               {branchDropdownOpen && (
@@ -110,7 +106,7 @@ const Topbar = () => {
                     style={{ fontWeight: !currentBranch ? 'bold' : 'normal' }}
                     onClick={() => handleBranchSwitch(null)}
                   >
-                    🏢 All Branches
+                    <Building2 size={14} style={{ marginRight: '6px', flexShrink: 0 }} /> All Branches
                   </button>
                   {(branchData?.data?.branches || []).map((b) => (
                     <button
@@ -119,7 +115,7 @@ const Topbar = () => {
                       style={{ fontWeight: currentBranch?._id === b._id ? 'bold' : 'normal' }}
                       onClick={() => handleBranchSwitch(b)}
                     >
-                      🏢 {b.branchName}
+                      <Building2 size={14} style={{ marginRight: '6px', flexShrink: 0 }} /> {b.branchName}
                     </button>
                   ))}
                 </div>
@@ -134,10 +130,7 @@ const Topbar = () => {
           <div className="topbar__profile-wrapper" ref={dropdownRef} style={{ position: 'relative' }}>
             <div className="topbar__profile" onClick={() => setDropdownOpen(!dropdownOpen)}>
               <div className="topbar__avatar">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                  <circle cx="12" cy="7" r="4" />
-                </svg>
+                <User size={20} />
               </div>
               <div className="topbar__profile-info">
                 <span className="topbar__profile-name">{user?.name || 'User'}</span>
@@ -145,9 +138,7 @@ const Topbar = () => {
                   {role === 'super_admin' ? 'Super Admin' : 'Branch User'}
                 </span>
               </div>
-              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2.5" className={`topbar__profile-caret ${dropdownOpen ? 'topbar__profile-caret--open' : ''}`}>
-                <polyline points="6 9 12 15 18 9" />
-              </svg>
+              <ChevronDown size={12} className={`topbar__profile-caret ${dropdownOpen ? 'topbar__profile-caret--open' : ''}`} />
             </div>
 
             {dropdownOpen && (
@@ -157,19 +148,14 @@ const Topbar = () => {
                   className="topbar__dropdown-item"
                   onClick={() => setDropdownOpen(false)}
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dropdown-item-icon">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                    <circle cx="12" cy="7" r="4" />
-                  </svg>
+                  <User size={16} className="dropdown-item-icon" />
                   <span>Manage Profile</span>
                 </Link>
                 <button
                   className="topbar__dropdown-item topbar__dropdown-item--danger"
                   onClick={handleLogout}
                 >
-                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="dropdown-item-icon">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
-                  </svg>
+                  <LogOut size={16} className="dropdown-item-icon" />
                   <span>Logout</span>
                 </button>
               </div>

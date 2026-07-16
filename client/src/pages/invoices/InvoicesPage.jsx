@@ -10,6 +10,7 @@ import { useGetCustomersQuery } from '../../store/api/customerApi';
 import { useGetProjectsQuery } from '../../store/api/projectApi';
 import { useGetProductsQuery } from '../../store/api/productApi';
 import { useGetBranchesQuery } from '../../store/api/branchApi';
+import { useGetQuotationsQuery } from '../../store/api/quotationApi';
 import { selectCurrentRole, selectCurrentBranchId } from '../../store/slices/authSlice';
 import DataTable from '../../components/ui/DataTable';
 import FormDrawer from '../../components/ui/FormDrawer';
@@ -56,6 +57,7 @@ const InvoicesPage = () => {
 
   // Drawer States
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const [form, setForm] = useState({
     customerId: '',
     projectId: '',
@@ -64,6 +66,29 @@ const InvoicesPage = () => {
     dueDate: '',
     branchId: '',
   });
+
+  // Fetch quotations for the selected project (runs after form is initialized)
+  const { data: projectQuotationsRes } = useGetQuotationsQuery(
+    { projectId: selectedProjectId, limit: 100 },
+    { skip: !selectedProjectId }
+  );
+
+  const projectQuotations = projectQuotationsRes?.data?.quotations || [];
+  const activeQuotation = projectQuotations.find((q) => q.status === 'accepted') || projectQuotations[0];
+
+  const displayProducts = activeQuotation
+    ? activeQuotation.items.map((item) => ({
+        _id: item.productId?._id || item.productId,
+        productName: item.productId?.productName || 'Unknown Product',
+        productCode: item.productId?.productCode || '',
+        rate: item.rate,
+      }))
+    : products.map((p) => ({
+        _id: p._id,
+        productName: p.productName,
+        productCode: p.productCode,
+        rate: p.sellingPrice || 0,
+      }));
 
   const [items, setItems] = useState([]);
   const [stageItem, setStageItem] = useState({
@@ -85,6 +110,7 @@ const InvoicesPage = () => {
   };
 
   const handleOpenAdd = () => {
+    setSelectedProjectId('');
     setForm({
       customerId: '',
       projectId: '',
@@ -97,6 +123,28 @@ const InvoicesPage = () => {
     setStageItem({ productId: '', quantity: '', rate: '' });
     setValidationErrors({});
     setDrawerOpen(true);
+  };
+
+  const handleCustomerChange = (e) => {
+    setSelectedProjectId('');
+    setForm((prev) => ({
+      ...prev,
+      customerId: e.target.value,
+      projectId: '',
+    }));
+    setItems([]);
+    setStageItem({ productId: '', quantity: '', rate: '' });
+  };
+
+  const handleProjectChange = (e) => {
+    const projId = e.target.value;
+    setSelectedProjectId(projId);
+    setForm((prev) => ({
+      ...prev,
+      projectId: projId,
+    }));
+    setItems([]);
+    setStageItem({ productId: '', quantity: '', rate: '' });
   };
 
   const handleAddItem = () => {
@@ -116,7 +164,7 @@ const InvoicesPage = () => {
       return;
     }
 
-    const prod = products.find((p) => p._id === stageItem.productId);
+    const prod = displayProducts.find((p) => p._id === stageItem.productId);
     if (!prod) return;
 
     if (items.some((it) => it.productId === prod._id)) {
@@ -190,24 +238,24 @@ const InvoicesPage = () => {
   };
 
   const columns = [
-    { key: 'invoiceNumber', label: 'Invoice No.', sortable: true },
+    { key: 'invoiceNumber', label: 'Invoice Number', sortable: true },
     {
       key: 'customerId',
-      label: 'Customer Client',
+      label: 'Customer',
       render: (val) => (
         <span>
           <strong>{val?.customerName}</strong>
-          {val?.companyName && <span style={{ fontSize: '11px', display: 'block', color: 'var(--color-text-secondary)' }}>{val.companyName}</span>}
+          {val?.companyName && <span style={{ fontSize: 'var(--text-xs)', display: 'block', color: 'var(--color-text-secondary)' }}>{val.companyName}</span>}
         </span>
       ),
     },
     { key: 'projectId', label: 'Project', render: (val) => val?.projectName || '—' },
-    { key: 'grandTotal', label: 'Grand Total', render: (val) => `₹${val.toLocaleString()}` },
+    { key: 'grandTotal', label: 'Grand Total (₹)', render: (val) => `₹${val.toLocaleString()}` },
     {
       key: 'paymentProgress',
-      label: 'Paid / Balance',
+      label: 'Paid / Balance (₹)',
       render: (_, row) => (
-        <span style={{ fontSize: '11px' }}>
+        <span style={{ fontSize: 'var(--text-xs)' }}>
           ₹{row.paidAmount.toLocaleString()} / <span style={{ color: 'var(--color-danger)' }}>₹{(row.grandTotal - row.paidAmount).toLocaleString()}</span>
         </span>
       ),
@@ -215,7 +263,7 @@ const InvoicesPage = () => {
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'invoiceDate',
-      label: 'Billing Date',
+      label: 'Invoice Date',
       render: (val) => new Date(val).toLocaleDateString(),
     },
     {
@@ -292,11 +340,11 @@ const InvoicesPage = () => {
 
         <div className="form-row">
           <div className="field-group">
-            <label className="field-label field-label--required">Client / Customer</label>
+            <label className="field-label field-label--required">Customer</label>
             <select
               className="field-select"
               value={form.customerId}
-              onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+              onChange={handleCustomerChange}
             >
               <option value="">Choose customer...</option>
               {customers.map((c) => (
@@ -307,11 +355,11 @@ const InvoicesPage = () => {
           </div>
 
           <div className="field-group">
-            <label className="field-label field-label--required">Select Project</label>
+            <label className="field-label field-label--required">Project</label>
             <select
               className="field-select"
               value={form.projectId}
-              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+              onChange={handleProjectChange}
             >
               <option value="">Choose project...</option>
               {projects
@@ -370,20 +418,28 @@ const InvoicesPage = () => {
 
           <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
             <div className="field-group">
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Select Product</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Product</label>
               <select
                 className="field-select"
                 value={stageItem.productId}
-                onChange={(e) => setStageItem({ ...stageItem, productId: e.target.value })}
+                onChange={(e) => {
+                  const prodId = e.target.value;
+                  const selectedProd = displayProducts.find((p) => p._id === prodId);
+                  setStageItem({
+                    ...stageItem,
+                    productId: prodId,
+                    rate: selectedProd ? selectedProd.rate : '',
+                  });
+                }}
               >
                 <option value="">Choose product...</option>
-                {products.map((p) => (
+                {displayProducts.map((p) => (
                   <option key={p._id} value={p._id}>{p.productName} ({p.productCode})</option>
                 ))}
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Qty</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Quantity</label>
               <input
                 type="number"
                 className="field-input"
@@ -392,7 +448,7 @@ const InvoicesPage = () => {
               />
             </div>
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Rate (₹)</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Unit Rate (₹)</label>
               <input
                 type="number"
                 className="field-input"
@@ -411,8 +467,8 @@ const InvoicesPage = () => {
                 <tr className="data-table__head">
                   <th className="data-table__th">Product</th>
                   <th className="data-table__th">Quantity</th>
-                  <th className="data-table__th">Unit Rate</th>
-                  <th className="data-table__th">Total (Net)</th>
+                  <th className="data-table__th">Unit Rate (₹)</th>
+                  <th className="data-table__th">Total (₹)</th>
                   <th className="data-table__th">Action</th>
                 </tr>
               </thead>

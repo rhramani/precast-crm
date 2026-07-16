@@ -8,7 +8,7 @@ import {
   useDeleteQuotationMutation,
 } from '../../store/api/quotationApi';
 import { useGetCustomersQuery } from '../../store/api/customerApi';
-import { useGetProjectsQuery } from '../../store/api/projectApi';
+import { useGetProjectsQuery, useLazyGetCombinedRequirementsQuery } from '../../store/api/projectApi';
 import { useGetProductsQuery } from '../../store/api/productApi';
 import DataTable from '../../components/ui/DataTable';
 import FormDrawer from '../../components/ui/FormDrawer';
@@ -50,6 +50,8 @@ const QuotationsPage = () => {
   const [deleteQuotation] = useDeleteQuotationMutation();
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, id: null });
   const navigate = useNavigate();
+
+  const [triggerGetCombinedReqs, { isLoading: importLoading }] = useLazyGetCombinedRequirementsQuery();
 
   // Drawer States
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -169,6 +171,32 @@ const QuotationsPage = () => {
     }
   };
 
+  const handleImportFromSites = async () => {
+    if (!form.projectId) return;
+    try {
+      const res = await triggerGetCombinedReqs(form.projectId).unwrap();
+      if (res && res.success && res.data) {
+        if (res.data.length === 0) {
+          alert("No requirement calculations found for this project's sites. Please calculate requirements for sites first.");
+          return;
+        }
+
+        const importedItems = res.data.map(item => ({
+          productId: item.productId,
+          productName: item.productName,
+          productCode: item.productCode,
+          quantity: item.quantity,
+          rate: item.rate,
+          taxPercent: item.taxPercent || 18
+        }));
+
+        setItems(importedItems);
+      }
+    } catch (err) {
+      alert(err?.data?.message || 'Failed to import requirements.');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setValidationErrors({});
@@ -227,16 +255,16 @@ const QuotationsPage = () => {
     { key: 'quoteNumber', label: 'Quote Number', sortable: true },
     {
       key: 'customerId',
-      label: 'Client / Company',
+      label: 'Customer',
       render: (val) => (
         <span>
           <strong>{val?.customerName}</strong>
-          {val?.companyName && <span style={{ fontSize: '11px', display: 'block', color: 'var(--color-text-secondary)' }}>{val.companyName}</span>}
+          {val?.companyName && <span style={{ fontSize: 'var(--text-xs)', display: 'block', color: 'var(--color-text-secondary)' }}>{val.companyName}</span>}
         </span>
       ),
     },
     { key: 'projectId', label: 'Project Name', render: (val) => val?.projectName || '—' },
-    { key: 'grandTotal', label: 'Grand Total', render: (val) => `₹${val.toLocaleString()}` },
+    { key: 'grandTotal', label: 'Grand Total (₹)', render: (val) => `₹${val.toLocaleString()}` },
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'validUntil',
@@ -264,7 +292,7 @@ const QuotationsPage = () => {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <DataTable
-        title="Sales Quotations pipeline"
+        title="Sales Quotations Pipeline"
         columns={columns}
         data={data?.data?.quotations || []}
         total={data?.meta?.total || 0}
@@ -317,7 +345,7 @@ const QuotationsPage = () => {
 
         <div className="form-row">
           <div className="field-group">
-            <label className="field-label field-label--required">Select Customer</label>
+            <label className="field-label field-label--required">Customer</label>
             <select
               className="field-select"
               value={form.customerId}
@@ -333,7 +361,7 @@ const QuotationsPage = () => {
           </div>
 
           <div className="field-group">
-            <label className="field-label field-label--required">Select Project</label>
+            <label className="field-label field-label--required">Project</label>
             <select
               className="field-select"
               value={form.projectId}
@@ -350,6 +378,18 @@ const QuotationsPage = () => {
             {validationErrors.projectId && <span className="field-error">{validationErrors.projectId}</span>}
           </div>
         </div>
+
+        {form.projectId && !selectedQuote && (
+          <button
+            type="button"
+            onClick={handleImportFromSites}
+            className="btn btn--secondary btn--sm"
+            style={{ marginBottom: '16px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+            disabled={importLoading}
+          >
+            {importLoading ? 'Importing...' : '⚡ Import items from Project Sites calculations'}
+          </button>
+        )}
 
         <div className="form-row">
 
@@ -371,7 +411,7 @@ const QuotationsPage = () => {
 
           <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
             <div className="field-group">
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Select Product</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Product</label>
               <select
                 className="field-select"
                 value={stageItem.productId}
@@ -384,7 +424,7 @@ const QuotationsPage = () => {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Qty</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Quantity</label>
               <input
                 type="number"
                 className="field-input"
@@ -393,7 +433,7 @@ const QuotationsPage = () => {
               />
             </div>
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Rate (₹)</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Unit Rate (₹)</label>
               <input
                 type="number"
                 className="field-input"
@@ -413,8 +453,8 @@ const QuotationsPage = () => {
                 <tr className="data-table__head">
                   <th className="data-table__th">Product</th>
                   <th className="data-table__th">Quantity</th>
-                  <th className="data-table__th">Unit Rate</th>
-                  <th className="data-table__th">Total (Net)</th>
+                  <th className="data-table__th">Unit Rate (₹)</th>
+                  <th className="data-table__th">Total (₹)</th>
                   <th className="data-table__th">Action</th>
                 </tr>
               </thead>

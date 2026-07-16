@@ -74,6 +74,7 @@ const BomPage = () => {
       quantityRequired: qty,
       unit: material.unit,
       wastagePercent: Number(stageItem.wastagePercent || 0),
+      purchaseRate: material.purchaseRate || 0,
     };
 
     const nextItems = [...items, newItem];
@@ -103,6 +104,33 @@ const BomPage = () => {
     }
   };
 
+  const handleEditItem = async (index, field, value) => {
+    const nextItems = items.map((item, idx) => {
+      if (idx === index) {
+        // Allow typing (empty string or number)
+        const val = value === '' ? '' : Number(value);
+        return { ...item, [field]: val };
+      }
+      return item;
+    });
+    setItems(nextItems);
+
+    // Filter valid items for cost calculation on backend
+    const validItems = nextItems.map((it) => ({
+      materialId: it.materialId,
+      quantityRequired: Number(it.quantityRequired) || 0,
+      unit: it.unit,
+      wastagePercent: Number(it.wastagePercent) || 0,
+    }));
+
+    try {
+      const costRes = await calculateRawCost({ items: validItems }).unwrap();
+      setEstimatedCost(costRes?.data?.calculatedCost || 0);
+    } catch {
+      // Keep cost unchanged on error
+    }
+  };
+
   const handleStartBuilding = () => {
     setIsBuilding(true);
     if (activeBom) {
@@ -114,6 +142,7 @@ const BomPage = () => {
         quantityRequired: it.quantityRequired,
         unit: it.unit,
         wastagePercent: it.wastagePercent || 0,
+        purchaseRate: it.materialId?.purchaseRate || 0,
       }));
       setItems(mapped);
       setEstimatedCost(activeBom.calculatedCost || 0);
@@ -135,9 +164,9 @@ const BomPage = () => {
         productId,
         items: items.map((it) => ({
           materialId: it.materialId,
-          quantityRequired: it.quantityRequired,
+          quantityRequired: Number(it.quantityRequired) || 0,
           unit: it.unit,
-          wastagePercent: it.wastagePercent,
+          wastagePercent: Number(it.wastagePercent) || 0,
         })),
         isActive: true,
       }).unwrap();
@@ -294,32 +323,70 @@ const BomPage = () => {
                 <tr className="data-table__head">
                   <th className="data-table__th">Material Code</th>
                   <th className="data-table__th">Material Name</th>
-                  <th className="data-table__th">Qty Required</th>
-                  <th className="data-table__th">Wastage %</th>
+                  <th className="data-table__th">Quantity Required</th>
+                  <th className="data-table__th">Wastage Allowed</th>
+                  <th className="data-table__th">Purchase Cost (Est)</th>
                   <th className="data-table__th">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {items.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '16px', color: 'var(--color-text-secondary)' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '16px', color: 'var(--color-text-secondary)' }}>
                       No materials added to this BOM version yet.
                     </td>
                   </tr>
                 ) : (
-                  items.map((item, idx) => (
-                    <tr key={idx} className="data-table__row">
-                      <td className="data-table__td">{item.materialCode}</td>
-                      <td className="data-table__td">{item.materialName}</td>
-                      <td className="data-table__td">{item.quantityRequired} {item.unit}</td>
-                      <td className="data-table__td">{item.wastagePercent}%</td>
-                      <td className="data-table__td">
-                        <button onClick={() => handleRemoveItem(idx)} className="btn btn--danger btn--sm">
-                          Remove
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                  items.map((item, idx) => {
+                    const rate = item.purchaseRate || 0;
+                    const qty = Number(item.quantityRequired) || 0;
+                    const wastage = Number(item.wastagePercent) || 0;
+                    const totalQty = qty * (1 + wastage / 100);
+                    const rowCost = totalQty * rate;
+
+                    return (
+                      <tr key={idx} className="data-table__row">
+                        <td className="data-table__td" style={{ fontWeight: 'var(--font-semibold)' }}>{item.materialCode}</td>
+                        <td className="data-table__td">{item.materialName}</td>
+                        <td className="data-table__td">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="number"
+                              className="field-input"
+                              style={{ width: '100px', padding: '6px 10px', height: '34px', margin: 0 }}
+                              value={item.quantityRequired}
+                              min="0"
+                              step="any"
+                              onChange={(e) => handleEditItem(idx, 'quantityRequired', e.target.value)}
+                            />
+                            <span style={{ fontSize: 'var(--text-sm)' }}>{item.unit}</span>
+                          </div>
+                        </td>
+                        <td className="data-table__td">
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <input
+                              type="number"
+                              className="field-input"
+                              style={{ width: '80px', padding: '6px 10px', height: '34px', margin: 0 }}
+                              value={item.wastagePercent}
+                              min="0"
+                              step="any"
+                              onChange={(e) => handleEditItem(idx, 'wastagePercent', e.target.value)}
+                            />
+                            <span style={{ fontSize: 'var(--text-sm)' }}>%</span>
+                          </div>
+                        </td>
+                        <td className="data-table__td" style={{ fontWeight: 'var(--font-medium)' }}>
+                          ₹{rowCost.toFixed(2)}
+                        </td>
+                        <td className="data-table__td">
+                          <button onClick={() => handleRemoveItem(idx)} className="btn btn--danger btn--sm">
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   useGetQuotationQuery,
@@ -34,24 +35,18 @@ const QuotationDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const [showGST, setShowGST] = useState(true); // true = with GST, false = without GST
+
   const { data: quoteRes, isLoading, error } = useGetQuotationQuery(id);
   const [updateStatus, { isLoading: statusLoading }] = useUpdateQuotationStatusMutation();
-
-  const quote = quoteRes?.data?.quotation;
-
-  /* ── Status transitions ───────────────────────────────── */
-  const handleStatus = async (nextStatus) => {
-    try {
-      await updateStatus({ id, status: nextStatus }).unwrap();
-    } catch (err) {
-      alert(err?.data?.message || 'Failed to update status');
-    }
-  };
 
   /* ── Loading / Error ─────────────────────────────────── */
   if (isLoading) {
     return <div className="qd-loading">Loading quotation…</div>;
   }
+
+  const quote = quoteRes?.data?.quotation;
+
   if (error || !quote) {
     return (
       <div className="qd-loading">
@@ -66,6 +61,28 @@ const QuotationDetailPage = () => {
   const status = quote.status;
   const isEditable = status === 'draft';
   const isFinal = status === 'accepted' || status === 'rejected';
+
+  // Determine if it is Intra-State (CGST + SGST) or Inter-State (IGST)
+  const getGstType = () => {
+    const branchGst = quote.branchId?.gstNumber || '';
+    const customerGst = customer?.gstNumber || '';
+    if (branchGst.length >= 2 && customerGst.length >= 2) {
+      return branchGst.substring(0, 2) === customerGst.substring(0, 2) ? 'intra' : 'inter';
+    }
+    return 'intra'; // Default/fallback to CGST + SGST
+  };
+
+  const gstType = getGstType();
+
+  /* ── Status transitions ───────────────────────────────── */
+  const handleStatus = async (nextStatus) => {
+    try {
+      await updateStatus({ id, status: nextStatus }).unwrap();
+    } catch (err) {
+      alert(err?.data?.message || 'Failed to update status');
+    }
+  };
+
 
   return (
     <div className="qd-page">
@@ -116,25 +133,86 @@ const QuotationDetailPage = () => {
         <div className="qd-items-panel" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
           <div className="qd-panel">
-            <h3 className="qd-panel__title">Line Items</h3>
+            {/* ── GST Toggle ── */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 className="qd-panel__title" style={{ margin: 0 }}>Line Items</h3>
+              <div style={{
+                display: 'inline-flex',
+                background: 'var(--color-primary-light)',
+                padding: 4,
+                borderRadius: 100,
+                gap: 4,
+                border: '1px solid rgba(var(--color-primary-rgb), 0.1)',
+              }}>
+                <button
+                  onClick={() => setShowGST(false)}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: 100,
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 'var(--font-semibold)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: !showGST ? 'var(--color-primary)' : 'transparent',
+                    color: !showGST ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    boxShadow: !showGST ? '0 2px 8px rgba(var(--color-primary-rgb), 0.2)' : 'none',
+                  }}
+                >
+                  Without GST
+                </button>
+                <button
+                  onClick={() => setShowGST(true)}
+                  style={{
+                    padding: '6px 16px',
+                    borderRadius: 100,
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 'var(--font-semibold)',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    background: showGST ? 'var(--color-primary)' : 'transparent',
+                    color: showGST ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    boxShadow: showGST ? '0 2px 8px rgba(var(--color-primary-rgb), 0.2)' : 'none',
+                  }}
+                >
+                  With GST
+                </button>
+              </div>
+            </div>
+
             <div style={{ overflowX: 'auto' }}>
               <table className="qd-items-table">
                 <thead>
                   <tr>
                     <th>#</th>
                     <th>Product</th>
-                    <th className="right">Qty</th>
-                    <th className="right">Unit Rate</th>
-                    <th className="right">Tax %</th>
-                    <th className="right">Net Amount</th>
-                    <th className="right">Tax Amount</th>
-                    <th className="right">Total</th>
+                    <th className="right">Quantity</th>
+                    <th className="right">Unit Rate (₹)</th>
+                    <th className="right">Net Amount (₹)</th>
+                    {showGST && (
+                      gstType === 'intra' ? (
+                        <>
+                          <th className="right">CGST (%)</th>
+                          <th className="right">CGST (₹)</th>
+                          <th className="right">SGST (%)</th>
+                          <th className="right">SGST (₹)</th>
+                        </>
+                      ) : (
+                        <>
+                          <th className="right">IGST (%)</th>
+                          <th className="right">IGST (₹)</th>
+                        </>
+                      )
+                    )}
+                    <th className="right">{showGST ? 'Total (₹)' : 'Amount (₹)'}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {quote.items.map((item, idx) => {
                     const net = item.quantity * item.rate;
-                    const taxAmt = net * ((item.taxPercent || 18) / 100);
+                    const taxRate = item.taxPercent ?? 18;
+                    const taxAmt = net * (taxRate / 100);
                     const total = net + taxAmt;
                     const prod = item.productId;
                     return (
@@ -150,15 +228,36 @@ const QuotationDetailPage = () => {
                         </td>
                         <td className="right num">{item.quantity}</td>
                         <td className="right num">{fmt(item.rate)}</td>
-                        <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
-                          {item.taxPercent ?? 18}%
-                        </td>
                         <td className="right num">{fmt(net)}</td>
-                        <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
-                          {fmt(taxAmt)}
-                        </td>
+                        {showGST && (
+                          gstType === 'intra' ? (
+                            <>
+                              <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
+                                {(taxRate / 2).toFixed(1)}%
+                              </td>
+                              <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
+                                {fmt(taxAmt / 2)}
+                              </td>
+                              <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
+                                {(taxRate / 2).toFixed(1)}%
+                              </td>
+                              <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
+                                {fmt(taxAmt / 2)}
+                              </td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
+                                {taxRate}%
+                              </td>
+                              <td className="right num" style={{ color: 'var(--color-text-secondary)' }}>
+                                {fmt(taxAmt)}
+                              </td>
+                            </>
+                          )
+                        )}
                         <td className="right num" style={{ fontWeight: 'var(--font-medium)' }}>
-                          {fmt(total)}
+                          {showGST ? fmt(total) : fmt(net)}
                         </td>
                       </tr>
                     );
@@ -173,14 +272,36 @@ const QuotationDetailPage = () => {
                 <span>Sub Total (Net)</span>
                 <span>{fmt(quote.subTotal)}</span>
               </div>
-              <div className="qd-totals__row qd-totals__row--sub">
-                <span>Tax (GST)</span>
-                <span>{fmt(quote.taxAmount)}</span>
-              </div>
-              <div className="qd-totals__row qd-totals__row--grand">
-                <span>Grand Total</span>
-                <span>{fmt(quote.grandTotal)}</span>
-              </div>
+              {showGST ? (
+                <>
+                  {gstType === 'intra' ? (
+                    <>
+                      <div className="qd-totals__row qd-totals__row--sub">
+                        <span>CGST</span>
+                        <span>{fmt(quote.taxAmount / 2)}</span>
+                      </div>
+                      <div className="qd-totals__row qd-totals__row--sub">
+                        <span>SGST</span>
+                        <span>{fmt(quote.taxAmount / 2)}</span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="qd-totals__row qd-totals__row--sub">
+                      <span>IGST</span>
+                      <span>{fmt(quote.taxAmount)}</span>
+                    </div>
+                  )}
+                  <div className="qd-totals__row qd-totals__row--grand">
+                    <span>Grand Total <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'rgba(255,255,255,0.75)', marginLeft: 6 }}>(Incl. GST)</span></span>
+                    <span>{fmt(quote.grandTotal)}</span>
+                  </div>
+                </>
+              ) : (
+                <div className="qd-totals__row qd-totals__row--grand">
+                  <span>Total <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'var(--font-medium)', color: 'rgba(255,255,255,0.75)', marginLeft: 6 }}>(Excl. GST)</span></span>
+                  <span>{fmt(quote.subTotal)}</span>
+                </div>
+              )}
             </div>
           </div>
 

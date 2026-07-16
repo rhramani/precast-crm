@@ -73,6 +73,7 @@ const ProductsPage = () => {
     unit: 'pcs',
     description: '',
     branchId: '',
+    sellingPrice: 0,
   });
 
   const [validationErrors, setValidationErrors] = useState({});
@@ -98,6 +99,7 @@ const ProductsPage = () => {
       unit: 'pcs',
       description: '',
       branchId: userRole === 'super_admin' ? '' : userBranchId || '',
+      sellingPrice: 0,
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -119,6 +121,7 @@ const ProductsPage = () => {
       unit:        product.unit || 'pcs',
       description: product.description || '',
       branchId:    product.branchId || '',
+      sellingPrice: product.sellingPrice || 0,
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -196,7 +199,8 @@ const ProductsPage = () => {
       },
     },
     { key: 'weight', label: 'Weight (kg)', render: (val) => `${val} kg` },
-    { key: 'unit', label: 'Unit of Measure' },
+    { key: 'unit', label: 'Unit' },
+    { key: 'sellingPrice', label: 'Selling Price', render: (val) => `₹${val?.toLocaleString('en-IN') || 0}` },
     {
       key: 'status',
       label: 'Status',
@@ -378,24 +382,35 @@ const ProductsPage = () => {
               onChange={(e) => setForm({ ...form, weight: Number(e.target.value) })}
             />
           </div>
-          {userRole === 'super_admin' && (
-            <div className="field-group">
-              <label className="field-label field-label--required">Branch Assignment</label>
-              <select
-                className="field-select"
-                value={form.branchId}
-                onChange={(e) => setForm({ ...form, branchId: e.target.value })}
-                disabled={!!selectedProduct}
-              >
-                <option value="">Select Branch...</option>
-                {branches.map((b) => (
-                  <option key={b._id} value={b._id}>{b.branchName}</option>
-                ))}
-              </select>
-              {validationErrors.branchId && <span className="field-error">{validationErrors.branchId}</span>}
-            </div>
-          )}
+          <div className="field-group">
+            <label className="field-label">Selling Price (₹)</label>
+            <input
+              type="number"
+              className="field-input"
+              value={form.sellingPrice}
+              onChange={(e) => setForm({ ...form, sellingPrice: Number(e.target.value) })}
+              placeholder="e.g. 700"
+            />
+          </div>
         </div>
+
+        {userRole === 'super_admin' && (
+          <div className="field-group" style={{ marginBottom: '16px' }}>
+            <label className="field-label field-label--required">Branch Assignment</label>
+            <select
+              className="field-select"
+              value={form.branchId}
+              onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+              disabled={!!selectedProduct}
+            >
+              <option value="">Select Branch...</option>
+              {branches.map((b) => (
+                <option key={b._id} value={b._id}>{b.branchName}</option>
+              ))}
+            </select>
+            {validationErrors.branchId && <span className="field-error">{validationErrors.branchId}</span>}
+          </div>
+        )}
 
         <div className="field-group">
           <label className="field-label">Description</label>

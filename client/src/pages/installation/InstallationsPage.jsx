@@ -85,6 +85,8 @@ const InstallationsPage = () => {
     setSortOrder(order);
   };
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api/v1';
+
   // Fetch sites for selected project
   const handleProjectChange = async (projectId) => {
     setForm((prev) => ({ ...prev, projectId, siteId: '' }));
@@ -93,15 +95,22 @@ const InstallationsPage = () => {
       return;
     }
     try {
-      const response = await fetch(`/api/v1/projects/${projectId}/sites`, {
+      const response = await fetch(`${API_BASE}/projects/${projectId}/sites`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to load project sites');
+      }
       const resData = await response.json();
       if (resData.success) {
         setProjectSites(resData.data.sites || []);
+      } else {
+        throw new Error(resData.message || 'Failed to load project sites');
       }
     } catch (e) {
       setProjectSites([]);
+      alert(e.message || 'Failed to load project sites');
     }
   };
 
@@ -137,15 +146,22 @@ const InstallationsPage = () => {
     const projId = inst.projectId?._id || inst.projectId;
     if (projId) {
       try {
-        const response = await fetch(`/api/v1/projects/${projId}/sites`, {
+        const response = await fetch(`${API_BASE}/projects/${projId}/sites`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.message || 'Failed to load project sites');
+        }
         const resData = await response.json();
         if (resData.success) {
           setProjectSites(resData.data.sites || []);
+        } else {
+          throw new Error(resData.message || 'Failed to load project sites');
         }
       } catch (e) {
         setProjectSites([]);
+        alert(e.message || 'Failed to load project sites');
       }
     }
 
@@ -254,7 +270,7 @@ const InstallationsPage = () => {
       key: 'crew',
       label: 'Crews / Labourers',
       render: (_, row) => (
-        <span style={{ fontSize: '11px' }}>
+        <span style={{ fontSize: 'var(--text-xs)' }}>
           Teams: <strong>{row.teamSize || 0}</strong> / Labourers: <strong>{row.labourCount || 0}</strong>
         </span>
       ),
@@ -262,9 +278,9 @@ const InstallationsPage = () => {
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'dates',
-      label: 'Dates (Start / Completed)',
+      label: 'Start / Completion Dates',
       render: (_, row) => (
-        <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
+        <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
           Start: {row.startDate ? new Date(row.startDate).toLocaleDateString() : '—'} /{' '}
           Done: {row.completedDate ? new Date(row.completedDate).toLocaleDateString() : '—'}
         </span>
@@ -432,7 +448,7 @@ const InstallationsPage = () => {
 
           <div className="form-row" style={{ gridTemplateColumns: '3fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
             <div className="field-group">
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Select Product</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Product</label>
               <select
                 className="field-select"
                 value={stageItem.productId}
@@ -445,7 +461,7 @@ const InstallationsPage = () => {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Qty</label>
+              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Quantity</label>
               <input
                 type="number"
                 className="field-input"

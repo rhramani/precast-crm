@@ -44,14 +44,14 @@ const CustomersPage = () => {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [form, setForm] = useState({
     customerName: '',
-    companyName: '',
-    contactPerson: '',
     mobile: '',
     email: '',
     gstNumber: '',
-    address: '',
-    creditLimit: 0,
-    paymentTerms: '',
+    city: '',
+    state: '',
+    country: '',
+    personalAddress: '',
+    siteAddress: '',
   });
 
   const [validationErrors, setValidationErrors] = useState({});
@@ -70,14 +70,14 @@ const CustomersPage = () => {
     setSelectedCustomer(null);
     setForm({
       customerName: '',
-      companyName: '',
-      contactPerson: '',
       mobile: '',
       email: '',
       gstNumber: '',
-      address: '',
-      creditLimit: 0,
-      paymentTerms: '',
+      city: '',
+      state: '',
+      country: '',
+      personalAddress: '',
+      siteAddress: '',
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -87,14 +87,14 @@ const CustomersPage = () => {
     setSelectedCustomer(customer);
     setForm({
       customerName: customer.customerName || '',
-      companyName: customer.companyName || '',
-      contactPerson: customer.contactPerson || '',
       mobile: customer.mobile || '',
       email: customer.email || '',
       gstNumber: customer.gstNumber || '',
-      address: customer.address || '',
-      creditLimit: customer.creditLimit || 0,
-      paymentTerms: customer.paymentTerms || '',
+      city: customer.city || '',
+      state: customer.state || '',
+      country: customer.country || '',
+      personalAddress: customer.personalAddress || '',
+      siteAddress: customer.siteAddress || '',
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -163,12 +163,27 @@ const CustomersPage = () => {
         </div>
       ),
     },
-    { key: 'companyName', label: 'Company', sortable: true },
-    { key: 'contactPerson', label: 'Contact Person' },
     { key: 'mobile', label: 'Mobile' },
     { key: 'email', label: 'Email' },
     { key: 'gstNumber', label: 'GSTIN' },
-    { key: 'creditLimit', label: 'Credit Limit', render: (val) => `₹${val?.toLocaleString() ?? 0}` },
+    {
+      key: 'state',
+      label: 'Location',
+      render: (_, row) => {
+        const parts = [row.city, row.state, row.country].filter(Boolean);
+        return parts.length > 0 ? parts.join(', ') : '—';
+      }
+    },
+    {
+      key: 'personalAddress',
+      label: 'Personal Address',
+      render: (val) => (val && val.length > 30 ? val.substring(0, 30) + '...' : val || '—')
+    },
+    {
+      key: 'siteAddress',
+      label: 'Site Address',
+      render: (val) => (val && val.length > 30 ? val.substring(0, 30) + '...' : val || '—')
+    },
     {
       key: 'status',
       label: 'Status',
@@ -265,29 +280,6 @@ const CustomersPage = () => {
 
         <div className="form-row">
           <div className="field-group">
-            <label className="field-label">Company Name</label>
-            <input
-              type="text"
-              className="field-input"
-              value={form.companyName}
-              onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-              placeholder="e.g. Patil Infra Corp"
-            />
-          </div>
-          <div className="field-group">
-            <label className="field-label">Contact Person</label>
-            <input
-              type="text"
-              className="field-input"
-              value={form.contactPerson}
-              onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
-              placeholder="Full name"
-            />
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="field-group">
             <label className="field-label field-label--required">Mobile Number</label>
             <PhoneInput
               placeholder="Enter mobile number"
@@ -309,46 +301,68 @@ const CustomersPage = () => {
           </div>
         </div>
 
-        <div className="form-row">
-          <div className="field-group">
-            <label className="field-label">GSTIN (GST Number)</label>
+        <div className="field-group">
+          <label className="field-label">GSTIN (GST Number)</label>
+          <input
+            type="text"
+            className="field-input"
+            value={form.gstNumber}
+            onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
+            placeholder="15-digit GSTIN"
+          />
+        </div>
+
+        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+          <div className="field-group" style={{ marginBottom: 0 }}>
+            <label className="field-label">City</label>
             <input
               type="text"
               className="field-input"
-              value={form.gstNumber}
-              onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
-              placeholder="15-digit GSTIN"
+              value={form.city}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
+              placeholder="e.g. Pune"
             />
           </div>
-          <div className="field-group">
-            <label className="field-label">Credit Limit (₹)</label>
+          <div className="field-group" style={{ marginBottom: 0 }}>
+            <label className="field-label">State</label>
             <input
-              type="number"
+              type="text"
               className="field-input"
-              value={form.creditLimit}
-              onChange={(e) => setForm({ ...form, creditLimit: Number(e.target.value) })}
+              value={form.state}
+              onChange={(e) => setForm({ ...form, state: e.target.value })}
+              placeholder="e.g. Maharashtra"
+            />
+          </div>
+          <div className="field-group" style={{ marginBottom: 0 }}>
+            <label className="field-label">Country</label>
+            <input
+              type="text"
+              className="field-input"
+              value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })}
+              placeholder="e.g. India"
             />
           </div>
         </div>
 
         <div className="field-group">
-          <label className="field-label">Payment Terms</label>
-          <input
-            type="text"
-            className="field-input"
-            value={form.paymentTerms}
-            onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
-            placeholder="e.g. 30 Days Net, 50% Advance"
+          <label className="field-label">Personal Address</label>
+          <textarea
+            className="field-textarea"
+            value={form.personalAddress}
+            onChange={(e) => setForm({ ...form, personalAddress: e.target.value })}
+            placeholder="Personal home/office address"
+            rows={3}
           />
         </div>
 
         <div className="field-group">
-          <label className="field-label">Billing Address</label>
+          <label className="field-label">Site Address</label>
           <textarea
             className="field-textarea"
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-            placeholder="Full business office address"
+            value={form.siteAddress}
+            onChange={(e) => setForm({ ...form, siteAddress: e.target.value })}
+            placeholder="Delivery site address"
             rows={3}
           />
         </div>

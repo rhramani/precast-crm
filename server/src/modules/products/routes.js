@@ -8,6 +8,8 @@ const { createProductSchema, updateProductSchema, statusSchema, validate } = req
 router.use(protect);
 
 router.get('/',                 branchScope, controller.list);
+router.get('/categories',       branchScope, controller.getCategories);
+router.get('/:id',              branchScope, controller.getOne);
 router.post('/',                validate(createProductSchema), controller.create);
 router.put('/:id',              branchScope, validate(updateProductSchema), controller.update);
 router.patch('/:id/status',     branchScope, validate(statusSchema), controller.updateStatus);

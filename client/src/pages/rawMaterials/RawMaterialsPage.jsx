@@ -13,6 +13,7 @@ import {
   useDeleteRawMaterialMutation,
 } from '../../store/api/rawMaterialApi';
 import { useGetBranchesQuery } from '../../store/api/branchApi';
+import { useGetSuppliersQuery } from '../../store/api/purchaseApi';
 import { useGetProjectsQuery } from '../../store/api/projectApi';
 import { selectCurrentRole, selectCurrentBranchId } from '../../store/slices/authSlice';
 import DataTable from '../../components/ui/DataTable';
@@ -59,6 +60,8 @@ const RawMaterialsPage = () => {
   const { data: lowStockData } = useGetLowStockQuery();
   const { data: branchData } = useGetBranchesQuery({ limit: 100 });
   const branches = branchData?.data?.branches || [];
+  const { data: suppliersRes } = useGetSuppliersQuery({ limit: 1000, status: 'active' });
+  const suppliers = suppliersRes?.data?.suppliers || [];
 
   // Mutations
   const [createMaterial] = useCreateRawMaterialMutation();
@@ -89,6 +92,7 @@ const RawMaterialsPage = () => {
     purchaseRate: 0,
     currentQuantity: 0,
     branchId: '',
+    supplierId: '',
   });
 
   const [opDrawerOpen, setOpDrawerOpen] = useState(false);
@@ -128,6 +132,7 @@ const RawMaterialsPage = () => {
       purchaseRate: 0,
       currentQuantity: 0,
       branchId: userRole === 'super_admin' ? '' : userBranchId || '',
+      supplierId: '',
     });
     setValidationErrors({});
     setMaterialDrawerOpen(true);
@@ -143,6 +148,7 @@ const RawMaterialsPage = () => {
       minimumQuantity: material.minimumQuantity || 0,
       purchaseRate: material.purchaseRate || 0,
       branchId: material.branchId || '',
+      supplierId: material.supplierId?._id || material.supplierId || '',
     });
     setValidationErrors({});
     setMaterialDrawerOpen(true);
@@ -164,16 +170,29 @@ const RawMaterialsPage = () => {
     setSiteDrawerOpen(true);
   };
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api/v1';
+
   const handleSiteProjectChange = async (projectId) => {
     setSiteDeliveryForm(prev => ({ ...prev, projectId, siteId: '' }));
     if (!projectId) { setProjectSites([]); return; }
     try {
-      const res = await fetch(`/api/v1/projects/${projectId}/sites`, {
+      const res = await fetch(`${API_BASE}/projects/${projectId}/sites`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to load project sites');
+      }
       const d = await res.json();
-      if (d.success) setProjectSites(d.data.sites || []);
-    } catch { setProjectSites([]); }
+      if (d.success) {
+        setProjectSites(d.data.sites || []);
+      } else {
+        throw new Error(d.message || 'Failed to load project sites');
+      }
+    } catch (err) {
+      setProjectSites([]);
+      alert(err.message || 'Failed to load project sites');
+    }
   };
 
   const handleSiteDeliverySubmit = async (e) => {
@@ -228,10 +247,14 @@ const RawMaterialsPage = () => {
     }
 
     try {
+      const payload = {
+        ...materialForm,
+        supplierId: materialForm.supplierId || null,
+      };
       if (selectedMaterial) {
-        await updateMaterial({ id: selectedMaterial._id, ...materialForm }).unwrap();
+        await updateMaterial({ id: selectedMaterial._id, ...payload }).unwrap();
       } else {
-        await createMaterial(materialForm).unwrap();
+        await createMaterial(payload).unwrap();
       }
       setMaterialDrawerOpen(false);
     } catch (err) {
@@ -311,9 +334,10 @@ const RawMaterialsPage = () => {
     { key: 'materialCode', label: 'Code', sortable: true },
     { key: 'materialName', label: 'Material Name', sortable: true },
     { key: 'category', label: 'Category', render: (val) => CATEGORY_MAP[val] || val },
+    { key: 'supplierId', label: 'Preferred Supplier', render: (val) => val?.supplierName || '—' },
     {
       key: 'currentQuantity',
-      label: 'Current Stock',
+      label: 'Current Stock Quantity',
       render: (val, row) => {
         const isLow = val <= row.minimumQuantity;
         return (
@@ -324,8 +348,8 @@ const RawMaterialsPage = () => {
         );
       },
     },
-    { key: 'minimumQuantity', label: 'Min Stock Alert', render: (val, row) => `${val} ${row.unit}` },
-    { key: 'purchaseRate', label: 'Purchase Rate', render: (val) => `₹${val.toFixed(2)}` },
+    { key: 'minimumQuantity', label: 'Minimum Stock Level', render: (val, row) => `${val} ${row.unit}` },
+    { key: 'purchaseRate', label: 'Purchase Rate (₹)', render: (val) => `₹${val.toFixed(2)}` },
     {
       key: 'actions',
       label: 'Actions',
@@ -450,7 +474,7 @@ const RawMaterialsPage = () => {
 
         <div className="form-row">
           <div className="field-group">
-            <label className="field-label">Min Stock Alert</label>
+            <label className="field-label">Minimum Stock Level</label>
             <input
               type="number"
               className="field-input"
@@ -459,7 +483,7 @@ const RawMaterialsPage = () => {
             />
           </div>
           <div className="field-group">
-            <label className="field-label">Purchase Rate</label>
+            <label className="field-label">Purchase Rate (₹)</label>
             <input
               type="number"
               className="field-input"
@@ -469,9 +493,25 @@ const RawMaterialsPage = () => {
           </div>
         </div>
 
+        <div className="field-group">
+          <label className="field-label">Preferred Supplier</label>
+          <select
+            className="field-select"
+            value={materialForm.supplierId}
+            onChange={(e) => setMaterialForm({ ...materialForm, supplierId: e.target.value })}
+          >
+            <option value="">No Supplier Associated</option>
+            {suppliers.map((s) => (
+              <option key={s._id} value={s._id}>
+                {s.supplierName} {s.contactPerson ? `(${s.contactPerson})` : ''}
+              </option>
+            ))}
+          </select>
+        </div>
+
         {!selectedMaterial && (
           <div className="field-group">
-            <label className="field-label">Current Stock</label>
+            <label className="field-label">Current Stock Quantity</label>
             <input
               type="number"
               className="field-input"

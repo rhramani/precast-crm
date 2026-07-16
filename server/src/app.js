@@ -32,6 +32,7 @@ const notificationRoutes = require('./modules/notifications/routes');
 const settingsRoutes = require('./modules/settings/routes');
 const equipmentRoutes = require('./modules/equipment/routes');
 const auditLogRoutes = require('./modules/auditLogs/routes');
+const wallTemplateRoutes = require('./modules/wallTemplates/routes');
 
 const app = express();
 
@@ -95,6 +96,7 @@ app.use(`${BASE}/notifications`, notificationRoutes);
 app.use(`${BASE}/settings`, settingsRoutes);
 app.use(`${BASE}/equipment`, equipmentRoutes);
 app.use(`${BASE}/audit-logs`, auditLogRoutes);
+app.use(`${BASE}/wall-templates`, wallTemplateRoutes);
 
 // ──────────────────────────────────────────────
 // 404 & Error handlers (must be last)

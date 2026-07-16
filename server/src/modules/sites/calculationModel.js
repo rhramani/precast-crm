@@ -13,17 +13,8 @@ const siteRequirementCalculationsSchema = new mongoose.Schema(
       min: 0,
     },
     calculated: {
-      wallPanels:       { type: Number, default: 0 },
-      poles:            { type: Number, default: 0 },
-      beams:            { type: Number, default: 0 },
-      topBeams:         { type: Number, default: 0 },
-      cement:           { type: Number, default: 0 }, // bags
-      steel:            { type: Number, default: 0 },  // kg
-      aggregate:        { type: Number, default: 0 },  // kg/tons
-      labour:           { type: Number, default: 0 },  // man-days
-      installationDays: { type: Number, default: 0 },
-      transportTrips:   { type: Number, default: 0 },
-      estimatedCost:    { type: Number, default: 0 },
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
     },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

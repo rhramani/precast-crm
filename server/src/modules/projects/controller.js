@@ -26,6 +26,11 @@ const getSites = async (req, res) => {
   res.json({ success: true, data: { sites } });
 };
 
+const getCombinedRequirements = async (req, res) => {
+  const result = await projectService.getCombinedRequirements(req.params.id, req.branchFilter);
+  res.json({ success: true, data: result });
+};
+
 const remove = async (req, res) => {
   await projectService.deleteProject(req.params.id);
   res.json({ success: true, message: 'Project deleted successfully' });
@@ -37,5 +42,6 @@ module.exports = {
   update,
   getOne,
   getSites,
+  getCombinedRequirements,
   remove,
 };

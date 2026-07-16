@@ -8,6 +8,7 @@ import {
 } from '../../store/api/reportApi';
 import DataTable from '../../components/ui/DataTable';
 import StatusBadge from '../../components/ui/StatusBadge';
+import { DollarSign, Factory, Package2, Users, Folder, Download } from 'lucide-react';
 import './ReportsPage.css';
 
 // ── XLSX export helper ──────────────────────────────────────────────────
@@ -21,64 +22,31 @@ const exportReportToXLSX = async (sheetName, headers, rows) => {
   XLSX.writeFile(wb, filename);
 };
 
-// ── Tab definitions — icons match sidebar ICON_MAP wireframe style ───────
 const TABS = [
   {
     key: 'financial',
     label: 'Financial Report',
-    icon: (
-      // Payments icon from ICON_MAP — currency / dollar sign
-      <svg viewBox="0 0 24 24" className="rpt-tab__icon">
-        <line x1="12" y1="1" x2="12" y2="23" />
-        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-      </svg>
-    ),
+    icon: <DollarSign size={16} className="rpt-tab__icon" />,
   },
   {
     key: 'production',
     label: 'Production Report',
-    icon: (
-      // Production / factory icon from ICON_MAP
-      <svg viewBox="0 0 24 24" className="rpt-tab__icon">
-        <path d="M22 21H2V9l5 4V9l5 4V9l10 6v6z" />
-      </svg>
-    ),
+    icon: <Factory size={16} className="rpt-tab__icon" />,
   },
   {
     key: 'inventory',
     label: 'Inventory Report',
-    icon: (
-      // Products / 3D box icon from ICON_MAP
-      <svg viewBox="0 0 24 24" className="rpt-tab__icon">
-        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-        <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-        <line x1="12" y1="22.08" x2="12" y2="12" />
-      </svg>
-    ),
+    icon: <Package2 size={16} className="rpt-tab__icon" />,
   },
   {
     key: 'customer',
     label: 'Customer Outstanding',
-    icon: (
-      // Customers / people icon from ICON_MAP
-      <svg viewBox="0 0 24 24" className="rpt-tab__icon">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-        <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
+    icon: <Users size={16} className="rpt-tab__icon" />,
   },
   {
     key: 'projects',
     label: 'Project Analytics',
-    icon: (
-      // Projects / grid icon from ICON_MAP
-      <svg viewBox="0 0 24 24" className="rpt-tab__icon">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <path d="M9 3v18M3 9h18M9 15h12M9 9l6 6" />
-      </svg>
-    ),
+    icon: <Folder size={16} className="rpt-tab__icon" />,
   },
 ];
 
@@ -90,11 +58,7 @@ const ExportBtn = ({ onClick, disabled }) => (
     disabled={disabled}
     title="Export to Excel (.xlsx)"
   >
-    <svg viewBox="0 0 24 24" className="rpt-export-btn__icon">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
+    <Download size={16} className="rpt-export-btn__icon" />
     Export XLSX
   </button>
 );
@@ -190,26 +154,26 @@ const FinancialTab = () => {
         </div>
         <div className="rpt-hero-divider" />
         <div className="rpt-hero-stat">
-          <span className="rpt-hero-stat__label">Total Invoiced</span>
+          <span className="rpt-hero-stat__label">Total Invoiced (₹)</span>
           <span className="rpt-hero-stat__value">₹{d?.revenue?.totalInvoiced?.toLocaleString('en-IN') ?? '—'}</span>
         </div>
         <div className="rpt-hero-divider" />
         <div className="rpt-hero-stat">
-          <span className="rpt-hero-stat__label">Cash Received</span>
+          <span className="rpt-hero-stat__label">Cash Received (₹)</span>
           <span className="rpt-hero-stat__value">₹{d?.revenue?.totalReceivedCash?.toLocaleString('en-IN') ?? '—'}</span>
         </div>
         <div className="rpt-hero-divider" />
         <div className="rpt-hero-stat">
-          <span className="rpt-hero-stat__label">Total Costs</span>
+          <span className="rpt-hero-stat__label">Total Costs (₹)</span>
           <span className="rpt-hero-stat__value" style={{ color: 'var(--color-danger)' }}>₹{d?.expenses?.totalOperatingCosts?.toLocaleString('en-IN') ?? '—'}</span>
         </div>
       </div>
 
       {/* KPI Row */}
       <div className="rpt-kpi-row">
-        <KpiCard label="Materials Procurement" value={`₹${(d?.expenses?.materialsPurchasesCost ?? 0).toLocaleString('en-IN')}`} color="orange" sub="Purchase orders received" />
-        <KpiCard label="Labour / Wages" value={`₹${(d?.expenses?.labourCost ?? 0).toLocaleString('en-IN')}`} color="purple" sub="Installation crew wages" />
-        <KpiCard label="Direct Site Expenses" value={`₹${(d?.expenses?.directExpenses ?? 0).toLocaleString('en-IN')}`} color="red" sub="Site-level costs" />
+        <KpiCard label="Materials Procurement (₹)" value={`₹${(d?.expenses?.materialsPurchasesCost ?? 0).toLocaleString('en-IN')}`} color="orange" sub="Purchase orders received" />
+        <KpiCard label="Labour / Wages (₹)" value={`₹${(d?.expenses?.labourCost ?? 0).toLocaleString('en-IN')}`} color="purple" sub="Installation crew wages" />
+        <KpiCard label="Direct Site Expenses (₹)" value={`₹${(d?.expenses?.directExpenses ?? 0).toLocaleString('en-IN')}`} color="red" sub="Site-level costs" />
       </div>
 
       {/* Section header with export */}
@@ -340,17 +304,17 @@ const InventoryTab = () => {
     { key: 'productName', label: 'Product Name' },
     {
       key: 'available',
-      label: 'Available',
+      label: 'Available Stock',
       render: (val) => <strong style={{ color: 'var(--color-success)' }}>{val} pcs</strong>,
     },
     {
       key: 'dispatchReady',
-      label: 'Dispatch Ready',
+      label: 'Ready for Dispatch',
       render: (val) => <span style={{ color: 'var(--color-primary)', fontWeight: 600 }}>{val} pcs</span>,
     },
     {
       key: 'reserved',
-      label: 'Reserved',
+      label: 'Reserved Stock',
       render: (val) => `${val} pcs`,
     },
   ];
@@ -359,7 +323,7 @@ const InventoryTab = () => {
     <div className="rpt-tab-content animate-fade-in">
       <div className="rpt-kpi-row">
         <KpiCard label="Raw Material Items" value={rm?.totalItems ?? '—'} color="blue" sub="Unique materials tracked" />
-        <KpiCard label="Raw Stock Valuation" value={`₹${(rm?.valuation ?? 0).toLocaleString('en-IN')}`} color="green" sub="Current market value" />
+        <KpiCard label="Raw Stock Valuation (₹)" value={`₹${(rm?.valuation ?? 0).toLocaleString('en-IN')}`} color="green" sub="Current market value" />
         <KpiCard
           label="Low Stock Alerts"
           value={rm?.lowStockAlerts ?? '—'}
@@ -367,7 +331,7 @@ const InventoryTab = () => {
           sub="Materials below minimum"
         />
         <KpiCard label="Finished Goods Designs" value={fg?.totalItems ?? '—'} color="purple" sub="Unique cast designs" />
-        <KpiCard label="Finished Goods Valuation" value={`₹${(fg?.valuation ?? 0).toLocaleString('en-IN')}`} color="orange" sub="BOM-based stock value" />
+        <KpiCard label="Finished Goods Valuation (₹)" value={`₹${(fg?.valuation ?? 0).toLocaleString('en-IN')}`} color="orange" sub="BOM-based stock value" />
       </div>
 
       <div className="rpt-section-header">
@@ -421,17 +385,17 @@ const CustomerTab = () => {
     },
     {
       key: 'totalInvoiced',
-      label: 'Total Invoiced',
+      label: 'Total Invoiced (₹)',
       render: (val) => <strong>₹{val?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>,
     },
     {
       key: 'totalPaid',
-      label: 'Total Paid',
+      label: 'Total Paid (₹)',
       render: (val) => <span style={{ color: 'var(--color-success)' }}>₹{val?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>,
     },
     {
       key: 'outstanding',
-      label: 'Outstanding Balance',
+      label: 'Outstanding Balance (₹)',
       render: (val) => (
         <strong style={{ color: val > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
           ₹{val?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
@@ -443,9 +407,9 @@ const CustomerTab = () => {
   return (
     <div className="rpt-tab-content animate-fade-in">
       <div className="rpt-kpi-row">
-        <KpiCard label="Total Invoiced" value={`₹${totalInvoiced.toLocaleString('en-IN')}`} color="blue" sub="All non-cancelled invoices" />
-        <KpiCard label="Total Collected" value={`₹${totalPaid.toLocaleString('en-IN')}`} color="green" sub="Payments received" />
-        <KpiCard label="Total Outstanding" value={`₹${totalOutstanding.toLocaleString('en-IN')}`} color={totalOutstanding > 0 ? 'red' : 'green'} sub="Accounts receivable balance" />
+        <KpiCard label="Total Invoiced (₹)" value={`₹${totalInvoiced.toLocaleString('en-IN')}`} color="blue" sub="All non-cancelled invoices" />
+        <KpiCard label="Total Collected (₹)" value={`₹${totalPaid.toLocaleString('en-IN')}`} color="green" sub="Payments received" />
+        <KpiCard label="Total Outstanding (₹)" value={`₹${totalOutstanding.toLocaleString('en-IN')}`} color={totalOutstanding > 0 ? 'red' : 'green'} sub="Accounts receivable balance" />
         <KpiCard label="Overdue Customers" value={overdueCount} color={overdueCount > 0 ? 'orange' : 'green'} sub="With pending balance" />
       </div>
 
@@ -508,7 +472,7 @@ const ProjectsTab = () => {
     },
     {
       key: 'valuation',
-      label: 'Project Valuation',
+      label: 'Project Valuation (₹)',
       render: (val) =>
         val ? (
           <strong>₹{val?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
@@ -532,7 +496,7 @@ const ProjectsTab = () => {
       <div className="rpt-kpi-row">
         <KpiCard label="Total Projects" value={projects.length} color="blue" sub="In portfolio" />
         <KpiCard label="Total Sites" value={totalSites} color="orange" sub="Across all projects" />
-        <KpiCard label="Portfolio Valuation" value={`₹${totalValuation.toLocaleString('en-IN')}`} color="green" sub="From accepted quotations" />
+        <KpiCard label="Portfolio Valuation (₹)" value={`₹${totalValuation.toLocaleString('en-IN')}`} color="green" sub="From accepted quotations" />
       </div>
 
       {/* Sites breakdown chips */}

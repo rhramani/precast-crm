@@ -1,13 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useCalculateSiteRequirementsMutation } from '../../store/api/projectApi';
+import { useCalculateSiteRequirementsMutation, useGetSiteQuery } from '../../store/api/projectApi';
 import { useGetFinishedGoodsInventoryQuery } from '../../store/api/inventoryApi';
-
-// Standard precast boundary wall conversion factors:
-// 1 linear meter of wall requires:
-//   Panels: 1m / 0.6m panel width = ~1.67 panels
-//   Poles: every 1.2m = 0.83 poles
-//   SQFT conversion: 1 sqft = 0.0929 sqm; typical wall height ~1.8m → length = sqft/(height_m*3.28)
+import {
+  Layers,
+  Cpu,
+  Truck,
+  Boxes,
+  ClipboardList,
+  Compass,
+  ChevronLeft,
+  Ruler,
+  FlaskConical,
+  BarChart3,
+  X,
+} from 'lucide-react';
+import '../../styles/redesignedPages.css';
 
 const SiteRequirementCalculatorPage = () => {
   const { id: siteId } = useParams();
@@ -17,8 +25,24 @@ const SiteRequirementCalculatorPage = () => {
   const [siteArea, setSiteArea] = useState('');
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
+  const { data: siteRes } = useGetSiteQuery(siteId);
+  const site = siteRes?.data?.site;
 
   const [calculateRequirements, { isLoading }] = useCalculateSiteRequirementsMutation();
+
+  useEffect(() => {
+    if (site && site.siteArea && !result && !errorMsg) {
+      setSiteArea(site.siteArea);
+      calculateRequirements({ id: siteId, siteArea: site.siteArea })
+        .unwrap()
+        .then((res) => {
+          setResult({ ...res.data, lengthInMeters: site.siteArea });
+        })
+        .catch((err) => {
+          setErrorMsg(err?.data?.message || 'Calculation operation failed.');
+        });
+    }
+  }, [site, siteId, calculateRequirements]);
   const { data: fgInvRes } = useGetFinishedGoodsInventoryQuery();
   const fgItems = fgInvRes?.data?.items || [];
 
@@ -33,10 +57,9 @@ const SiteRequirementCalculatorPage = () => {
       return;
     }
 
-    // Convert SQFT to meters (assuming standard 6-foot / 1.83m wall height)
     const wallHeight = 1.83; // meters
     const lengthInMeters = inputMode === 'sqft'
-      ? (inputVal * 0.0929) / wallHeight  // sqft → sqm → length
+      ? (inputVal * 0.0929) / wallHeight
       : inputVal;
 
     try {
@@ -69,228 +92,334 @@ const SiteRequirementCalculatorPage = () => {
 
   const StockGapRow = ({ label, required, inStock }) => {
     const shortfall = Math.max(0, required - inStock);
+    const pct = required > 0 ? Math.min(100, Math.round((inStock / required) * 100)) : 100;
     return (
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', padding: '10px 0', borderBottom: '1px solid var(--color-border)', alignItems: 'center', fontSize: 'var(--text-sm)' }}>
-        <span style={{ fontWeight: 600 }}>{label}</span>
-        <span>{required} pcs needed</span>
-        <span style={{ color: inStock >= required ? 'var(--color-success)' : 'var(--color-danger)', fontWeight: 600 }}>
-          {inStock} in stock
-        </span>
-        <span style={{
-          background: shortfall > 0 ? 'var(--color-danger-bg)' : 'var(--color-success-bg)',
-          color: shortfall > 0 ? 'var(--color-danger)' : 'var(--color-success)',
-          padding: '2px 8px', borderRadius: '12px', fontWeight: 700, fontSize: '12px', textAlign: 'center',
-        }}>
-          {shortfall > 0 ? `⚠ Produce ${shortfall} more` : '✓ Sufficient'}
-        </span>
+      <div className="stock-progress-group">
+        <div className="stock-progress-labels">
+          <span style={{ fontWeight: 600, color: '#1e293b' }}>{label}</span>
+          <span style={{ color: '#64748b', fontSize: '12px' }}>
+            <strong style={{ color: '#1e293b' }}>{inStock}</strong> available of{' '}
+            <strong style={{ color: '#1e293b' }}>{required}</strong> needed
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="stock-progress-bar-container" style={{ flex: 1 }}>
+            <div
+              className={`stock-progress-bar-fill ${shortfall > 0 ? 'stock-progress-bar-fill--shortfall' : 'stock-progress-bar-fill--sufficient'}`}
+              style={{ width: `${pct}%` }}
+            />
+          </div>
+          <span className={`stock-gap-badge ${shortfall > 0 ? 'stock-gap-badge--shortfall' : 'stock-gap-badge--sufficient'}`}
+            style={{ minWidth: '100px', textAlign: 'center' }}>
+            {shortfall > 0 ? `Produce ${shortfall}` : '✓ Sufficient'}
+          </span>
+        </div>
       </div>
     );
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', maxWidth: '1200px' }}>
+    <div className="redesign-layout">
 
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        <button onClick={() => navigate(-1)} className="btn btn--secondary" style={{ padding: '6px 12px' }}>
-          ← Back
+      {/* ── Header ── */}
+      <div className="redesign-header">
+        <button onClick={() => navigate(-1)} className="redesign-header__back-btn">
+          <ChevronLeft size={16} /> Back
         </button>
-        <div>
-          <h1 style={{ fontSize: 'var(--text-xl)', fontWeight: 'var(--font-semibold)', margin: 0 }}>
+        <div className="redesign-header__title-area">
+          <h1 className="redesign-header__title">
+            <Compass size={22} style={{ flexShrink: 0 }} />
             Site Requirement Calculator
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', margin: 0, fontSize: 'var(--text-sm)' }}>
-            Enter site dimensions to auto-calculate precast elements, raw materials, labour, and logistics required.
+          <p className="redesign-header__subtitle">
+            {site ? `Site: ${site.siteName} | Project: ${site.projectId?.projectName || ''}` : 'Enter site dimensions to auto-calculate precast elements, raw materials, labour, and logistics required.'}
           </p>
         </div>
       </div>
 
-      {/* Input Form */}
-      <div className="card" style={{ background: 'var(--color-surface)', padding: '24px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-
-        {/* Input Mode Toggle */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', alignSelf: 'center', marginRight: '4px' }}>
-            Input Mode:
+      {/* ── Input Card ── */}
+      <div className="glass-card--no-hover">
+        {/* Toggle */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
+            Calculation Input Mode:
           </span>
-          {['meters', 'sqft'].map(mode => (
-            <button
-              key={mode}
-              type="button"
-              onClick={() => { setInputMode(mode); setSiteArea(''); setResult(null); }}
-              style={{
-                padding: '6px 16px',
-                borderRadius: '20px',
-                border: '1px solid var(--color-border)',
-                background: inputMode === mode ? 'var(--color-primary)' : 'var(--color-surface)',
-                color: inputMode === mode ? '#fff' : 'var(--color-text-primary)',
-                fontWeight: inputMode === mode ? 700 : 400,
-                cursor: 'pointer',
-                fontSize: 'var(--text-sm)',
-                transition: 'all 0.2s',
-              }}
-            >
-              {mode === 'meters' ? '📏 Linear Meters' : '📐 Square Feet (SQFT)'}
-            </button>
-          ))}
+          <div className="toggle-pill-container">
+            {[
+              { key: 'meters', label: '📏 Meters' },
+              { key: 'sqft',   label: '📐 SQFT' },
+            ].map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => { setInputMode(key); setSiteArea(''); setResult(null); }}
+                className={`toggle-pill-btn ${inputMode === key ? 'toggle-pill-btn--active' : ''}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleCalculate} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
-          <div className="field-group" style={{ maxWidth: '300px', flex: 1 }}>
-            <label className="field-label field-label--required">
+          <div style={{ flex: 1, maxWidth: '400px' }}>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
               {inputMode === 'meters' ? 'Boundary Wall Length (Meters)' : 'Site Area (Square Feet)'}
+              <span style={{ color: '#ef4444', marginLeft: 3 }}>*</span>
             </label>
             <input
               type="number"
-              className="field-input"
+              className="input-field-redesign"
               value={siteArea}
               onChange={(e) => setSiteArea(e.target.value)}
               placeholder={inputMode === 'meters' ? 'e.g. 150' : 'e.g. 2500'}
               disabled={isLoading}
             />
             {inputMode === 'sqft' && siteArea && !isNaN(Number(siteArea)) && Number(siteArea) > 0 && (
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+              <div style={{
+          fontSize: 'var(--text-xs)', color: 'var(--color-primary)', marginTop: '7px', fontWeight: 'var(--font-semibold)',
+                background: 'var(--color-primary-light)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', display: 'inline-block',
+              }}>
                 ≈ {((Number(siteArea) * 0.0929) / 1.83).toFixed(1)} meters of wall length (assuming 6ft wall height)
               </div>
             )}
           </div>
           <button
             type="submit"
-            className="btn btn--primary"
-            style={{ height: '38px', minWidth: '160px' }}
+            className="btn-premium btn-premium--primary"
+            style={{ height: '46px', minWidth: '200px', fontSize: '14px' }}
             disabled={isLoading}
           >
-            {isLoading ? 'Calculating...' : '🔢 Compute Requirements'}
+            {isLoading ? (
+              <>
+                <div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'var(--color-text-inverse)', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+                Calculating...
+              </>
+            ) : (
+              <><BarChart3 size={16} /> Compute Requirements</>
+            )}
           </button>
         </form>
 
         {errorMsg && (
-          <div className="field-error" style={{ marginTop: '16px', display: 'block' }}>
+          <div style={{
+            marginTop: '16px', padding: '12px 16px', background: 'var(--color-danger-bg)', borderRadius: 'var(--radius-sm)',
+            border: '1px solid rgba(220, 38, 38, 0.15)', color: 'var(--color-danger)', fontSize: 'var(--text-sm)', fontWeight: 'var(--font-medium)',
+          }}>
             ⚠️ {errorMsg}
           </div>
         )}
       </div>
 
-      {/* Results */}
+      {/* ── Results ── */}
       {calculated && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', animation: 'fadeInUp 0.4s ease' }}>
 
-          {/* Estimated Cost Banner */}
-          <div className="card" style={{
-            background: 'var(--color-surface)', padding: '24px', border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-md)', borderLeft: '5px solid var(--color-accent)',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px',
-          }}>
-            <div>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', textTransform: 'uppercase' }}>
+          {/* Cost Banner */}
+          <div className="cost-gradient-banner" onClick={() => navigate(`/sites/${siteId}/cost-breakdown`)} title="Click to view detailed costing sheet">
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div className="cost-gradient-banner__label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 Estimated Project Cost (Components + Logistics + Labour)
-              </span>
-              <h1 style={{ color: 'var(--color-accent)', margin: '4px 0 0 0', fontSize: '2rem' }}>
+                <span style={{ fontSize: '10px', background: 'rgba(255, 255, 255, 0.15)', padding: '2px 8px', borderRadius: '10px', color: '#fff', textTransform: 'none', fontWeight: 500 }}>
+                  🔍 Click to view costing sheet
+                </span>
+              </div>
+              <h1 className="cost-gradient-banner__value">
                 ₹{calculated.estimatedCost?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </h1>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
-                {result.inputSqft ? `Input: ${result.inputSqft} SQFT` : `Wall Length:`}
-              </span>
-              <h3 style={{ margin: 0 }}>
-                {result.inputSqft ? `≈ ${result.lengthInMeters?.toFixed(1)} m` : `${result.siteArea} meters`}
-              </h3>
+            <div style={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
+              <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                {result.inputSqft ? 'Input Area' : 'Wall Length'}
+              </div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 'var(--font-bold)', color: 'var(--color-text-inverse)', marginTop: '6px', letterSpacing: '-0.02em' }}>
+                {result.inputSqft
+                  ? `${result.inputSqft} SQFT ≈ ${result.lengthInMeters?.toFixed(1)} m`
+                  : `${result.siteArea} meters`}
+              </div>
             </div>
           </div>
 
-          {/* Detailed Requirements Grids */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px' }}>
+          {/* 3-Column Color-Coded Results Grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
 
-            {/* Precast Elements */}
-            <div className="card" style={{ background: 'var(--color-surface)', padding: '20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-              <h3 style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '8px', marginBottom: '16px' }}>
-                🧱 Precast Elements Required
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {[
-                  { label: 'Wall Panels (Slabs)', val: calculated.wallPanels },
-                  { label: 'Poles (Columns/Posts)', val: calculated.poles },
-                  { label: 'Beams', val: calculated.beams },
-                  { label: 'Top Beams', val: calculated.topBeams },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>{item.label}</span>
-                    <strong style={{ color: 'var(--color-primary)' }}>{item.val} pcs</strong>
-                  </div>
-                ))}
+            {/* Precast Elements — Blue */}
+            <div className="calc-result-card calc-result-card--blue">
+              <div className="calc-result-card__header">
+                <div className="calc-result-card__icon">
+                  <Boxes size={18} />
+                </div>
+                <div className="calc-result-card__title">Precast Elements Required</div>
               </div>
+              {[
+                { label: 'Wall Panels (Slabs)', val: `${calculated.wallPanels} pcs`, price: calculated.prices?.panel },
+                { label: 'Poles (Columns/Posts)', val: `${calculated.poles} pcs`, price: calculated.prices?.pole },
+                { label: 'Beams', val: `${calculated.beams} pcs`, price: calculated.prices?.beam },
+                { label: 'Top Beams', val: `${calculated.topBeams} pcs`, price: calculated.prices?.topBeam },
+              ].map((item, i) => (
+                <div key={i} className="calc-result-card__row" style={{ minHeight: '44px' }}>
+                  <span className="calc-result-card__row-label">{item.label}</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className="calc-result-card__row-value" style={{ display: 'block' }}>{item.val}</span>
+                    {item.price > 0 && (
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)', display: 'block', marginTop: '2px', fontWeight: 600 }}>
+                        @ ₹{item.price}/pc
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
 
-            {/* Raw Materials */}
-            <div className="card" style={{ background: 'var(--color-surface)', padding: '20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-              <h3 style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '8px', marginBottom: '16px' }}>
-                🪵 Raw Materials Required
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {[
-                  { label: 'Cement', val: `${calculated.cement} bags` },
-                  { label: 'Reinforcement Steel', val: `${calculated.steel} kg` },
-                  { label: 'Aggregate & Sand', val: `${calculated.aggregate} kg` },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>{item.label}</span>
-                    <strong>{item.val}</strong>
-                  </div>
-                ))}
-              </div>
-            </div>
+             {/* Raw Materials — Purple */}
+             <div className="calc-result-card calc-result-card--purple">
+               <div className="calc-result-card__header">
+                 <div className="calc-result-card__icon">
+                   <FlaskConical size={18} />
+                 </div>
+                 <div className="calc-result-card__title">Raw Materials Required</div>
+               </div>
+               {calculated.rawMaterialBreakdown && calculated.rawMaterialBreakdown.length > 0 ? (
+                 calculated.rawMaterialBreakdown.map((item, i) => (
+                   <div key={i} className="calc-result-card__row" style={{ minHeight: '44px' }}>
+                     <span className="calc-result-card__row-label">{item.materialName}</span>
+                     <div style={{ textAlign: 'right' }}>
+                       <span className="calc-result-card__row-value" style={{ display: 'block' }}>
+                         {item.quantity} {item.unit}
+                       </span>
+                       {item.rate > 0 && (
+                         <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)', display: 'block', marginTop: '2px', fontWeight: 600 }}>
+                           @ ₹{item.rate}/{item.unit}
+                         </span>
+                       )}
+                     </div>
+                   </div>
+                 ))
+               ) : (
+                 [
+                   { label: 'Cement', val: `${calculated.cement} bags` },
+                   { label: 'Reinforcement Steel', val: `${calculated.steel} kg` },
+                   { label: 'Aggregate & Sand', val: `${calculated.aggregate} kg` },
+                 ].map((item, i) => (
+                   <div key={i} className="calc-result-card__row">
+                     <span className="calc-result-card__row-label">{item.label}</span>
+                     <span className="calc-result-card__row-value">{item.val}</span>
+                   </div>
+                 ))
+               )}
+             </div>
 
-            {/* Logistics & Crew */}
-            <div className="card" style={{ background: 'var(--color-surface)', padding: '20px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
-              <h3 style={{ borderBottom: '1px solid var(--color-border)', paddingBottom: '8px', marginBottom: '16px' }}>
-                🚛 Logistics & Crew
-              </h3>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {[
-                  { label: 'Labour Required', val: `${calculated.labour} man-days` },
-                  { label: 'Installation Duration', val: `${calculated.installationDays} days` },
-                  { label: 'Transport Trips (Flatbeds)', val: `${calculated.transportTrips} trips` },
-                ].map((item, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--color-border)' }}>
-                    <span style={{ color: 'var(--color-text-secondary)' }}>{item.label}</span>
-                    <strong>{item.val}</strong>
-                  </div>
-                ))}
+            {/* Logistics & Crew — Amber */}
+            <div className="calc-result-card calc-result-card--amber">
+              <div className="calc-result-card__header">
+                <div className="calc-result-card__icon">
+                  <Truck size={18} />
+                </div>
+                <div className="calc-result-card__title">Logistics & Crew</div>
               </div>
+              {[
+                { label: 'Labour Days Logged', val: `${calculated.labour} man-days` },
+                { label: 'Installation Duration', val: `${calculated.installationDays} days` },
+                { label: 'Actual Transport Trips', val: `${calculated.transportTrips} trips` },
+              ].map((item, i) => (
+                <div key={i} className="calc-result-card__row">
+                  <span className="calc-result-card__row-label">{item.label}</span>
+                  <span className="calc-result-card__row-value">{item.val}</span>
+                </div>
+              ))}
+
+              {calculated.labourBreakdown && calculated.labourBreakdown.length > 0 && (
+                <div style={{ marginTop: '16px', borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: '8px', letterSpacing: '0.5px' }}>Labourers Logged Details</div>
+                  {calculated.labourBreakdown.map((l, idx) => (
+                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
+                      <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
+                        {l.labourName} ({l.labourType.toUpperCase().replace('_', ' ')})
+                        <span style={{ fontWeight: 400, color: 'var(--color-text-secondary)', fontSize: '11px', marginLeft: '6px' }}>
+                          @ ₹{(l.dailyWages || 800).toLocaleString('en-IN')}/day
+                        </span>
+                      </span>
+                      <span style={{ color: '#d97706', fontWeight: 700 }}>
+                        {l.daysLogged} days (₹{(l.totalCost || (l.daysLogged * 800)).toLocaleString('en-IN')})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {calculated.dispatchesBreakdown && calculated.dispatchesBreakdown.length > 0 && (
+                <div style={{ marginTop: '16px', borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
+                  <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: '8px', letterSpacing: '0.5px' }}>Dispatch Challans Logged</div>
+                  {calculated.dispatchesBreakdown.map((d, idx) => {
+                    const isValidDate = d.dispatchDate && !isNaN(new Date(d.dispatchDate).getTime());
+                    const dateFormatted = isValidDate
+                      ? new Date(d.dispatchDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+                      : '—';
+                    return (
+                      <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '6px 0', borderBottom: idx < calculated.dispatchesBreakdown.length - 1 ? '1px dashed var(--color-border)' : 'none' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                          <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>Challan: #{d.challanNumber || '—'}</span>
+                          <span style={{ color: 'var(--color-text-secondary)', fontSize: '11px' }}>{dateFormatted}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                          <span>Veh: {d.vehicleNumber || '—'} ({d.driverName || '—'})</span>
+                          <span style={{
+                            textTransform: 'capitalize',
+                            fontWeight: 600,
+                            color: d.status === 'delivered' ? 'var(--color-success)' : d.status === 'dispatched' ? 'var(--color-info)' : 'var(--color-warning)'
+                          }}>{d.status}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
 
           {/* ── Stock vs Requirement Comparison ── */}
-          <div className="card" style={{ background: 'var(--color-surface)', padding: '24px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', borderTop: '3px solid var(--color-primary)' }}>
-            <h3 style={{ margin: '0 0 8px 0' }}>📦 Finished Goods Stock vs Site Requirement</h3>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', margin: '0 0 16px 0' }}>
-              Compare what's needed vs what's currently available in your finished goods inventory. If stock is insufficient, you need to start a production order.
+          <div className="glass-card--no-hover" style={{ borderTop: '3px solid var(--color-primary)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-info-bg)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <ClipboardList size={17} color="var(--color-info)" />
+              </div>
+              <h3 style={{ margin: 0, fontSize: 'var(--text-base)', fontWeight: 'var(--font-bold)', color: 'var(--color-primary-dark)' }}>
+                Finished Goods Stock vs Site Requirement
+              </h3>
+            </div>
+            <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-sm)', margin: '0 0 22px 44px', lineHeight: 1.6 }}>
+              Compare what's needed vs what's currently available in finished goods inventory.
+              If stock is insufficient, start a production order.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: '8px', padding: '8px 0', borderBottom: '2px solid var(--color-border)', marginBottom: '4px' }}>
-              <strong style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>Product</strong>
-              <strong style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>Site Needs</strong>
-              <strong style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>In Stock</strong>
-              <strong style={{ fontSize: 'var(--text-xs)', textTransform: 'uppercase', color: 'var(--color-text-secondary)' }}>Status</strong>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <StockGapRow label="Wall Panels / Slabs" required={calculated.wallPanels || 0} inStock={fgMap.panels || 0} />
+              <StockGapRow label="Poles / Columns"    required={calculated.poles || 0}     inStock={fgMap.poles || 0} />
+              <StockGapRow label="Beams"              required={calculated.beams || 0}     inStock={fgMap.beams || 0} />
+              <StockGapRow label="Top Beams"          required={calculated.topBeams || 0}  inStock={fgMap.topBeams || 0} />
             </div>
 
-            <StockGapRow label="Wall Panels / Slabs" required={calculated.wallPanels || 0} inStock={fgMap.panels || 0} />
-            <StockGapRow label="Poles / Columns" required={calculated.poles || 0} inStock={fgMap.poles || 0} />
-            <StockGapRow label="Beams" required={calculated.beams || 0} inStock={fgMap.beams || 0} />
-            <StockGapRow label="Top Beams" required={calculated.topBeams || 0} inStock={fgMap.topBeams || 0} />
-
-            <div style={{ marginTop: '20px', padding: '16px', background: 'var(--color-surface-hover)', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+            <div className="stock-insight-footer">
+              <div style={{ fontSize: 'var(--text-sm)', color: 'var(--color-primary)', fontWeight: 'var(--font-semibold)' }}>
                 💡 If stock is insufficient, go to <strong>Production Orders</strong> to plan manufacturing.
               </div>
-              <button onClick={() => navigate('/production')} className="btn btn--primary" style={{ fontSize: '13px' }}>
+              <button
+                onClick={() => navigate('/production')}
+                className="btn-premium btn-premium--primary"
+                style={{ fontSize: '13px', padding: '9px 18px' }}
+              >
                 🏭 Go to Production Planning
               </button>
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 };

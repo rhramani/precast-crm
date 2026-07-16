@@ -32,6 +32,16 @@ const labourSchema = new mongoose.Schema(
       enum: ['active', 'inactive'],
       default: 'active',
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Project',
+      default: null,
+    },
+    siteId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Site',
+      default: null,
+    },
   },
   { timestamps: true }
 );

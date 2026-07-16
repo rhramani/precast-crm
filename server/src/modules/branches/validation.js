@@ -19,6 +19,7 @@ const createBranchSchema = Joi.object({
 
 const updateBranchSchema = Joi.object({
   branchName:    Joi.string().trim(),
+  branchCode:    Joi.string().trim().uppercase().allow('', null).optional(),
   address:       Joi.string().trim().allow('', null),
   contactPerson: Joi.string().trim().allow('', null),
   mobileNumber:  Joi.string().trim().allow('', null),

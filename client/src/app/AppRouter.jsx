@@ -23,6 +23,7 @@ import RawMaterialsPage from '../pages/rawMaterials/RawMaterialsPage';
 import MaterialLedgerPage from '../pages/rawMaterials/MaterialLedgerPage';
 import ProductsPage from '../pages/products/ProductsPage';
 import BomPage from '../pages/products/BomPage';
+import WallTemplatePage from '../pages/products/WallTemplatePage';
 import CapacityCalculatorPage from '../pages/production/CapacityCalculatorPage';
 import ProductionOrdersPage from '../pages/production/ProductionOrdersPage';
 import InventoryPage from '../pages/inventory/InventoryPage';
@@ -31,6 +32,7 @@ import CustomerDetailPage from '../pages/customers/CustomerDetailPage';
 import ProjectsPage from '../pages/projects/ProjectsPage';
 import ProjectSitesPage from '../pages/projects/ProjectSitesPage';
 import SiteRequirementCalculatorPage from '../pages/projects/SiteRequirementCalculatorPage';
+import SiteCostBreakdownPage from '../pages/projects/SiteCostBreakdownPage';
 import QuotationsPage from '../pages/quotations/QuotationsPage';
 import QuotationDetailPage from '../pages/quotations/QuotationDetailPage';
 import PurchaseOrdersPage from '../pages/purchases/PurchaseOrdersPage';
@@ -133,6 +135,9 @@ const AppRouter = () => (
     <Route path="/products/:id/bom"
       element={<ProtectedRoute excludeRole="super_admin"><BomPage /></ProtectedRoute>}
     />
+    <Route path="/products/wall-templates"
+      element={<ProtectedRoute excludeRole="super_admin"><WallTemplatePage /></ProtectedRoute>}
+    />
 
     {/* ── Production ── */}
     <Route path="/production"
@@ -171,6 +176,9 @@ const AppRouter = () => (
     <Route path="/sites/:id/requirement-calculator"
       element={<ProtectedRoute excludeRole="super_admin"><SiteRequirementCalculatorPage /></ProtectedRoute>}
     />
+    <Route path="/sites/:id/cost-breakdown"
+      element={<ProtectedRoute excludeRole="super_admin"><SiteCostBreakdownPage /></ProtectedRoute>}
+    />
 
     {/* ── Quotations ── */}
     <Route path="/quotations"
@@ -195,7 +203,7 @@ const AppRouter = () => (
 
     {/* ── Purchases ── */}
     <Route path="/purchases"
-      element={<ProtectedRoute excludeRole="super_admin"><PurchaseOrdersPage /></ProtectedRoute>}
+      element={<Navigate to="/purchases/suppliers" replace />}
     />
     <Route path="/purchases/suppliers"
       element={<ProtectedRoute excludeRole="super_admin"><SuppliersPage /></ProtectedRoute>}
@@ -240,6 +248,9 @@ const AppRouter = () => (
 
     {/* ── Costing ── */}
     <Route path="/costing/:siteId"
+      element={<ProtectedRoute excludeRole="super_admin"><ProjectCostingPage /></ProtectedRoute>}
+    />
+    <Route path="/costing/project/:projectId"
       element={<ProtectedRoute excludeRole="super_admin"><ProjectCostingPage /></ProtectedRoute>}
     />
 

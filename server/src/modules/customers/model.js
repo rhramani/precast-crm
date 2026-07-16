@@ -34,7 +34,32 @@ const customerSchema = new mongoose.Schema(
       uppercase: true,
       default: '',
     },
+    city: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    state: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    country: {
+      type: String,
+      trim: true,
+      default: '',
+    },
     address: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    personalAddress: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    siteAddress: {
       type: String,
       trim: true,
       default: '',

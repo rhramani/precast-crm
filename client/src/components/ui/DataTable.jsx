@@ -1,70 +1,36 @@
 import { useState, useEffect, useRef } from 'react';
+import {
+  Search,
+  X,
+  Download,
+  ChevronsUpDown,
+  ChevronUp,
+  ChevronDown,
+  PackageOpen,
+  ChevronLeft,
+  ChevronRight,
+} from 'lucide-react';
 import './DataTable.css';
 
-// ── SVG Icons ───────────────────────────────────────────────
+// ── Lucide Icons ───────────────────────────────────────────────
 
-const SearchIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-  </svg>
-);
-
-const CloseIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
-  </svg>
-);
-
-const ExportIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-    <polyline points="7 10 12 15 17 10" />
-    <line x1="12" y1="15" x2="12" y2="3" />
-  </svg>
-);
-
-const SortIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon" style={{ opacity: 0.4 }}>
-    <polyline points="18 13 12 7 6 13" />
-    <polyline points="6 15 12 21 18 15" />
-  </svg>
-);
-
+const SearchIcon = () => <Search className="svg-icon" />;
+const CloseIcon = () => <X className="svg-icon" />;
+const ExportIcon = () => <Download className="svg-icon" />;
+const SortIcon = () => <ChevronsUpDown className="svg-icon" style={{ opacity: 0.4 }} />;
 const SortUpIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <polyline points="18 13 12 7 6 13" stroke="var(--color-primary)" />
-    <polyline points="6 15 12 21 18 15" style={{ opacity: 0.2 }} />
-  </svg>
+  <span className="svg-icon" style={{ color: 'var(--color-primary)', display: 'inline-flex' }}>
+    <ChevronUp size={16} />
+  </span>
 );
-
 const SortDownIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <polyline points="18 13 12 7 6 13" style={{ opacity: 0.2 }} />
-    <polyline points="6 15 12 21 18 15" stroke="var(--color-primary)" />
-  </svg>
+  <span className="svg-icon" style={{ color: 'var(--color-primary)', display: 'inline-flex' }}>
+    <ChevronDown size={16} />
+  </span>
 );
-
-const EmptyIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
-    <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-    <line x1="12" y1="22.08" x2="12" y2="12" />
-  </svg>
-);
-
-const ChevronLeftIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <polyline points="15 18 9 12 15 6" />
-  </svg>
-);
-
-const ChevronRightIcon = () => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="svg-icon">
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
+const EmptyIcon = () => <PackageOpen className="svg-icon" />;
+const ChevronLeftIcon = () => <ChevronLeft className="svg-icon" />;
+const ChevronRightIcon = () => <ChevronRight className="svg-icon" />;
 
 /**
  * DataTable — responsive and dynamic table component used across every list screen.

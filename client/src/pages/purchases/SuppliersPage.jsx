@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+
 import {
   useGetSuppliersQuery,
   useCreateSupplierMutation,
@@ -183,22 +183,7 @@ const SuppliersPage = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-      {/* Routing Tabs */}
-      <div className="navigation-tabs">
-        <NavLink
-          end
-          to="/purchases"
-          className={({ isActive }) => `navigation-tab ${isActive ? 'navigation-tab--active' : ''}`}
-        >
-          📋 Purchase Orders
-        </NavLink>
-        <NavLink
-          to="/purchases/suppliers"
-          className={({ isActive }) => `navigation-tab ${isActive ? 'navigation-tab--active' : ''}`}
-        >
-          👥 Suppliers
-        </NavLink>
-      </div>
+
 
       <DataTable
         title="Suppliers directory"

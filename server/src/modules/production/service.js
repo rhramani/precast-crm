@@ -145,7 +145,7 @@ const updateStatus = async (id, branchFilter, status) => {
 };
 
 // 5. Complete Production Order (CRITICAL TRANSACTION)
-const completeOrder = async (id, branchFilter, { producedQuantity, remarks }, userId) => {
+const completeOrder = async (id, branchFilter, { producedQuantity, damagedQuantity = 0, remarks }, userId) => {
   // Let's use Mongoose Session to execute a transaction if a replica set is active.
   // Fall back to a sequenced sequence if replica set is not available.
   const db = mongoose.connection;
@@ -161,6 +161,19 @@ const completeOrder = async (id, branchFilter, { producedQuantity, remarks }, us
 
   const executeComplete = async (sess) => {
     const queryOpts = sess ? { session: sess } : {};
+
+    // Validate damaged quantity
+    const damQty = Number(damagedQuantity) || 0;
+    if (isNaN(damQty) || damQty < 0) {
+      const err = new Error('Damaged quantity must be a non-negative number');
+      err.statusCode = 400;
+      throw err;
+    }
+    if (damQty > producedQuantity) {
+      const err = new Error('Damaged quantity cannot exceed actual produced quantity');
+      err.statusCode = 400;
+      throw err;
+    }
 
     // 1. Fetch order
     const order = await ProductionOrder.findOne({ _id: id, ...branchFilter }, null, queryOpts);
@@ -269,13 +282,15 @@ const completeOrder = async (id, branchFilter, { producedQuantity, remarks }, us
       });
     }
 
-    fgInventory.availableStock += producedQuantity;
-    fgInventory.dispatchReadyStock += producedQuantity; // Matches dispatch decrement rules in later phases
+    fgInventory.availableStock += (producedQuantity - damQty);
+    fgInventory.dispatchReadyStock += (producedQuantity - damQty); // Matches dispatch decrement rules in later phases
+    fgInventory.damagedStock += damQty;
     await fgInventory.save(queryOpts);
 
     // 4. Update order details
     order.status = 'completed';
     order.producedQuantity = producedQuantity;
+    order.damagedQuantity = damQty;
     order.materialsConsumed = actualConsumed.map((r) => ({
       materialId: r.materialId,
       quantity: r.neededQty,

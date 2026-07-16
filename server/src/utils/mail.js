@@ -34,13 +34,15 @@ const sendResetOtpEmail = async (email, otpCode) => {
   const transporter = getTransporter();
 
   if (!transporter) {
-    console.log('\n----------------- [MAIL SIMULATION] -----------------');
-    console.log(`To: ${toEmail}`);
-    console.log(`Subject: Password Reset Verification OTP Code`);
-    console.log(`Message: Your password reset verification OTP is ${otpCode}.`);
-    console.log(`Expiry: 10 minutes`);
-    console.log('Reason: SMTP credentials not fully configured in environment.');
-    console.log('-----------------------------------------------------\n');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n----------------- [MAIL SIMULATION] -----------------');
+      console.log(`To: ${toEmail}`);
+      console.log(`Subject: Password Reset Verification OTP Code`);
+      console.log(`Message: Your password reset verification OTP is ${otpCode}.`);
+      console.log(`Expiry: 10 minutes`);
+      console.log('Reason: SMTP credentials not fully configured in environment.');
+      console.log('-----------------------------------------------------\n');
+    }
     return;
   }
 
@@ -182,13 +184,17 @@ const sendResetOtpEmail = async (email, otpCode) => {
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`[Mail Service] Password reset OTP sent successfully to ${toEmail}`);
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[Mail Service] Password reset OTP sent successfully to ${toEmail}`);
+    }
   } catch (error) {
     console.error(`[Mail Service] Failed to send email to ${toEmail}:`, error);
-    console.log('\n----------------- [MAIL FALLBACK] -----------------');
-    console.log(`To: ${toEmail}`);
-    console.log(`OTP Code: ${otpCode}`);
-    console.log('---------------------------------------------------\n');
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n----------------- [MAIL FALLBACK] -----------------');
+      console.log(`To: ${toEmail}`);
+      console.log(`OTP Code: ${otpCode}`);
+      console.log('---------------------------------------------------\n');
+    }
   }
 };
 

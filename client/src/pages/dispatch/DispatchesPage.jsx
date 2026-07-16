@@ -89,6 +89,8 @@ const DispatchesPage = () => {
     setSortOrder(order);
   };
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api/v1';
+
   // Fetch sites for selected project
   const handleProjectChange = async (projectId) => {
     setForm((prev) => ({ ...prev, projectId, siteId: '' }));
@@ -97,15 +99,22 @@ const DispatchesPage = () => {
       return;
     }
     try {
-      const response = await fetch(`/api/v1/projects/${projectId}/sites`, {
+      const response = await fetch(`${API_BASE}/projects/${projectId}/sites`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to load project sites');
+      }
       const resData = await response.json();
       if (resData.success) {
         setProjectSites(resData.data.sites || []);
+      } else {
+        throw new Error(resData.message || 'Failed to load project sites');
       }
     } catch (e) {
       setProjectSites([]);
+      alert(e.message || 'Failed to load project sites');
     }
   };
 
@@ -145,15 +154,22 @@ const DispatchesPage = () => {
     const projId = disp.projectId?._id || disp.projectId;
     if (projId) {
       try {
-        const response = await fetch(`/api/v1/projects/${projId}/sites`, {
+        const response = await fetch(`${API_BASE}/projects/${projId}/sites`, {
           headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
         });
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          throw new Error(body.message || 'Failed to load project sites');
+        }
         const resData = await response.json();
         if (resData.success) {
           setProjectSites(resData.data.sites || []);
+        } else {
+          throw new Error(resData.message || 'Failed to load project sites');
         }
       } catch (e) {
         setProjectSites([]);
+        alert(e.message || 'Failed to load project sites');
       }
     }
 

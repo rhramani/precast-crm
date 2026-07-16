@@ -1,4 +1,6 @@
 const Expense = require('./model');
+const Project = require('../projects/model');
+const Site = require('../sites/model');
 
 const buildMeta = (page, limit, total) => ({
   page,
@@ -8,10 +10,16 @@ const buildMeta = (page, limit, total) => ({
 });
 
 // 1. List Expenses
-const listExpenses = async (branchFilter, { page = 1, limit = 10, search }) => {
+const listExpenses = async (branchFilter, { page = 1, limit = 10, search, siteId, projectId }) => {
   const filter = { ...branchFilter };
   if (search) {
     filter.description = { $regex: search, $options: 'i' };
+  }
+  if (siteId) {
+    filter.siteId = siteId;
+  }
+  if (projectId) {
+    filter.projectId = projectId;
   }
 
   const skip = (page - 1) * limit;

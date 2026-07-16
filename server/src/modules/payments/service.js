@@ -11,10 +11,13 @@ const buildMeta = (page, limit, total) => ({
 });
 
 // 1. List Payments
-const listPayments = async (branchFilter, { page = 1, limit = 10, search }) => {
+const listPayments = async (branchFilter, { page = 1, limit = 10, search, customerId }) => {
   const filter = { ...branchFilter };
   if (search) {
     filter.paymentNumber = { $regex: search, $options: 'i' };
+  }
+  if (customerId) {
+    filter.customerId = customerId;
   }
 
   const skip = (page - 1) * limit;

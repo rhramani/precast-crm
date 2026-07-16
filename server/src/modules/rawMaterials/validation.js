@@ -9,6 +9,7 @@ const createMaterialSchema = Joi.object({
   purchaseRate:    Joi.number().min(0).default(0),
   currentQuantity: Joi.number().min(0).default(0).optional(),
   branchId:        Joi.string().trim().allow(null, ''), // Injectable or required depending on controller/user
+  supplierId:      Joi.string().trim().allow(null, '').optional(),
 });
 
 const updateMaterialSchema = Joi.object({
@@ -19,6 +20,7 @@ const updateMaterialSchema = Joi.object({
   minimumQuantity: Joi.number().min(0),
   purchaseRate:    Joi.number().min(0),
   branchId:        Joi.string().trim().allow(null, ''),
+  supplierId:      Joi.string().trim().allow(null, '').optional(),
 });
 
 const stockInOutSchema = Joi.object({

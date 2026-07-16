@@ -13,18 +13,13 @@ import DataTable from '../../components/ui/DataTable';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ActionsDropdown from '../../components/ui/ActionsDropdown';
 import FormDrawer from '../../components/ui/FormDrawer';
+import { Layers, Cpu, Package } from 'lucide-react';
 import './InventoryPage.css';
 
 const TABS = [
-  { key: 'raw', label: 'Raw Materials', icon: (
-    <svg viewBox="0 0 24 24" className="inv-tab__icon"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-  )},
-  { key: 'wip', label: 'WIP Inventory', icon: (
-    <svg viewBox="0 0 24 24" className="inv-tab__icon"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
-  )},
-  { key: 'finished', label: 'Finished Goods', icon: (
-    <svg viewBox="0 0 24 24" className="inv-tab__icon"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-  )},
+  { key: 'raw', label: 'Raw Materials', icon: <Layers size={16} className="inv-tab__icon" /> },
+  { key: 'wip', label: 'Work In Progress (WIP)', icon: <Cpu size={16} className="inv-tab__icon" /> },
+  { key: 'finished', label: 'Finished Goods', icon: <Package size={16} className="inv-tab__icon" /> },
 ];
 
 const CATEGORY_MAP = {
@@ -47,16 +42,16 @@ const RawMaterialsTab = () => {
     { key: 'category', label: 'Category', render: (val) => <span style={{ textTransform: 'capitalize' }}>{val?.replace(/_/g, ' ')}</span> },
     {
       key: 'currentQuantity',
-      label: 'Available Qty',
+      label: 'Available Quantity',
       render: (val, row) => (
         <span style={{ fontWeight: 600, color: row.isLow ? 'var(--color-danger)' : 'var(--color-success)' }}>
           {val} {row.unit} {row.isLow && <span style={{ fontSize: '11px', background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderRadius: '4px', padding: '1px 5px', marginLeft: '4px' }}>LOW</span>}
         </span>
       ),
     },
-    { key: 'minimumQuantity', label: 'Min Threshold', render: (val, row) => `${val} ${row.unit}` },
-    { key: 'purchaseRate', label: 'Unit Rate', render: (val) => `₹${val?.toFixed(2)}` },
-    { key: 'totalValuation', label: 'Stock Value', render: (val) => <strong>₹{val?.toFixed(2)}</strong> },
+    { key: 'minimumQuantity', label: 'Minimum Limit', render: (val, row) => `${val} ${row.unit}` },
+    { key: 'purchaseRate', label: 'Unit Rate (₹)', render: (val) => `₹${val?.toFixed(2)}` },
+    { key: 'totalValuation', label: 'Stock Value (₹)', render: (val) => <strong>₹{val?.toFixed(2)}</strong> },
   ];
 
   return (
@@ -98,7 +93,7 @@ const WipTab = () => {
 
   const [completeDrawerOpen, setCompleteDrawerOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
-  const [completeForm, setCompleteForm] = useState({ producedQuantity: '', remarks: '' });
+  const [completeForm, setCompleteForm] = useState({ producedQuantity: '', damagedQuantity: '0', remarks: '' });
   const [validationErrors, setValidationErrors] = useState({});
 
   const wipItems = wipRes?.data?.items || [];
@@ -116,7 +111,7 @@ const WipTab = () => {
 
   const handleOpenComplete = (order) => {
     setSelectedOrder(order);
-    setCompleteForm({ producedQuantity: order.plannedQuantity || '', remarks: '' });
+    setCompleteForm({ producedQuantity: order.plannedQuantity || '', damagedQuantity: '0', remarks: '' });
     setValidationErrors({});
     setCompleteDrawerOpen(true);
   };
@@ -125,12 +120,30 @@ const WipTab = () => {
     e.preventDefault();
     setValidationErrors({});
     const qty = Number(completeForm.producedQuantity);
+    const damagedQty = Number(completeForm.damagedQuantity || 0);
+
+    const errors = {};
     if (completeForm.producedQuantity === '' || isNaN(qty) || qty < 0) {
-      setValidationErrors({ producedQuantity: 'Must be a valid produced quantity >= 0' });
+      errors.producedQuantity = 'Must be a valid produced quantity >= 0';
+    }
+    if (completeForm.damagedQuantity !== '' && (isNaN(damagedQty) || damagedQty < 0)) {
+      errors.damagedQuantity = 'Damaged quantity must be a non-negative number';
+    } else if (damagedQty > qty) {
+      errors.damagedQuantity = 'Damaged quantity cannot exceed actual produced quantity';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
       return;
     }
+
     try {
-      await completeOrder({ id: selectedOrder.orderId, producedQuantity: qty, remarks: completeForm.remarks }).unwrap();
+      await completeOrder({
+        id: selectedOrder.orderId,
+        producedQuantity: qty,
+        damagedQuantity: damagedQty,
+        remarks: completeForm.remarks
+      }).unwrap();
       setCompleteDrawerOpen(false);
       refetch();
     } catch (err) {
@@ -139,12 +152,12 @@ const WipTab = () => {
   };
 
   const columns = [
-    { key: 'orderNumber', label: 'Order #', render: (val) => <code style={{ fontSize: '12px', background: 'var(--color-warning-bg)', padding: '2px 6px', borderRadius: '4px', color: 'var(--color-warning)' }}>{val}</code> },
+    { key: 'orderNumber', label: 'Order Number', render: (val) => <code style={{ fontSize: '12px', background: 'var(--color-warning-bg)', padding: '2px 6px', borderRadius: '4px', color: 'var(--color-warning)' }}>{val}</code> },
     { key: 'productName', label: 'Product Name' },
     { key: 'productCode', label: 'Code' },
-    { key: 'plannedQuantity', label: 'Pipeline Volume' },
-    { key: 'status', label: 'Stage', render: (val) => <StatusBadge status={val} /> },
-    { key: 'startDate', label: 'Started', render: (val) => val ? new Date(val).toLocaleDateString('en-IN') : <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>Pending</span> },
+    { key: 'plannedQuantity', label: 'Planned Quantity' },
+    { key: 'status', label: 'Production Stage', render: (val) => <StatusBadge status={val} /> },
+    { key: 'startDate', label: 'Start Date', render: (val) => val ? new Date(val).toLocaleDateString('en-IN') : <span style={{ color: 'var(--color-text-secondary)', fontSize: '12px' }}>Pending</span> },
     {
       key: 'actions', label: 'Actions',
       render: (_, row) => {
@@ -200,9 +213,14 @@ const WipTab = () => {
           Planned: <strong>{selectedOrder?.plannedQuantity} pcs</strong>
         </div>
         <div className="field-group">
-          <label className="field-label field-label--required">Actual Produced Quantity (Pcs)</label>
+          <label className="field-label field-label--required">Actual Produced Quantity</label>
           <input type="number" className="field-input" value={completeForm.producedQuantity} onChange={(e) => setCompleteForm({ ...completeForm, producedQuantity: e.target.value })} placeholder="e.g. 100" />
           {validationErrors.producedQuantity && <span className="field-error">{validationErrors.producedQuantity}</span>}
+        </div>
+        <div className="field-group">
+          <label className="field-label">Damaged Quantity</label>
+          <input type="number" className="field-input" value={completeForm.damagedQuantity} onChange={(e) => setCompleteForm({ ...completeForm, damagedQuantity: e.target.value })} placeholder="e.g. 5" />
+          {validationErrors.damagedQuantity && <span className="field-error">{validationErrors.damagedQuantity}</span>}
         </div>
         <div className="field-group">
           <label className="field-label">Production Remarks</label>
@@ -216,9 +234,10 @@ const WipTab = () => {
 // ── Tab 3: Finished Goods ─────────────────────────────────────────────
 const FinishedGoodsTab = () => {
   const { data: fgRes, isLoading } = useGetFinishedGoodsInventoryQuery();
-  const inventory = fgRes?.data?.items || [];
+  const allInventory = fgRes?.data?.items || [];
+  const inventory = allInventory.filter((item) => (item.availableStock || 0) > 0);
   const totalVolume = fgRes?.data?.totalQuantity || 0;
-  const dispatchReady = inventory.reduce((sum, i) => sum + (i.dispatchReadyStock || 0), 0);
+  const dispatchReady = allInventory.reduce((sum, i) => sum + (i.dispatchReadyStock || 0), 0);
 
   const columns = [
     { key: 'productCode', label: 'Code', render: (val) => <code style={{ fontSize: '12px', background: 'var(--color-success-bg)', padding: '2px 6px', borderRadius: '4px', color: 'var(--color-success)' }}>{val}</code> },
@@ -254,7 +273,7 @@ const FinishedGoodsTab = () => {
         onPageChange={() => {}}
         onLimitChange={() => {}}
         total={inventory.length}
-        emptyMessage="No finished goods records found. Complete a production order to populate stock."
+        emptyMessage="No finished goods with available stock found. Complete a production order to populate stock."
       />
     </div>
   );

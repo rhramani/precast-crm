@@ -31,7 +31,7 @@ const calculateTotals = (items) => {
 };
 
 // 1. List Quotations
-const listQuotations = async (branchFilter, { page = 1, limit = 10, search, status }) => {
+const listQuotations = async (branchFilter, { page = 1, limit = 10, search, status, projectId }) => {
   const filter = { ...branchFilter };
 
   if (search) {
@@ -40,6 +40,9 @@ const listQuotations = async (branchFilter, { page = 1, limit = 10, search, stat
   if (status) {
     filter.status = status;
   }
+  if (projectId) {
+    filter.projectId = projectId;
+  }
 
   const skip = (page - 1) * limit;
 
@@ -47,6 +50,7 @@ const listQuotations = async (branchFilter, { page = 1, limit = 10, search, stat
     Quotation.find(filter)
       .populate('customerId', 'customerName companyName mobile')
       .populate('projectId', 'projectName')
+      .populate('items.productId', 'productName productCode unit sellingPrice')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit)),
@@ -172,6 +176,7 @@ const getQuotation = async (id, branchFilter) => {
   const quote = await Quotation.findOne({ _id: id, ...branchFilter })
     .populate('customerId')
     .populate('projectId')
+    .populate('branchId')
     .populate('items.productId', 'productName productCode unit');
 
   if (!quote) {

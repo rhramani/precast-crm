@@ -27,7 +27,7 @@ const listMaterials = async (branchFilter, { page = 1, limit = 10, search, categ
   const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
   const [materials, total] = await Promise.all([
-    RawMaterial.find(filter).sort(sort).skip(skip).limit(Number(limit)),
+    RawMaterial.find(filter).sort(sort).skip(skip).limit(Number(limit)).populate('supplierId', 'supplierName'),
     RawMaterial.countDocuments(filter),
   ]);
 

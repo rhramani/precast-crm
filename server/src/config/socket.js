@@ -12,7 +12,9 @@ const initSocket = (server) => {
   });
 
   io.on('connection', (socket) => {
-    console.log(`🔌 Socket connected: ${socket.id}`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔌 Socket connected: ${socket.id}`);
+    }
 
     socket.on('join_branch', (branchId) => {
       if (branchId) {
@@ -21,22 +23,30 @@ const initSocket = (server) => {
         rooms.forEach((room) => {
           if (room.startsWith('branch_') && room !== `branch_${branchId}`) {
             socket.leave(room);
-            console.log(`👤 Socket ${socket.id} left room: ${room}`);
+            if (process.env.NODE_ENV === 'development') {
+              console.log(`👤 Socket ${socket.id} left room: ${room}`);
+            }
           }
         });
 
         socket.join(`branch_${branchId}`);
-        console.log(`👤 Socket ${socket.id} joined room: branch_${branchId}`);
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`👤 Socket ${socket.id} joined room: branch_${branchId}`);
+        }
       }
     });
 
     socket.on('join_super_admin', () => {
       socket.join('super_admin');
-      console.log(`👤 Socket ${socket.id} joined room: super_admin`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`👤 Socket ${socket.id} joined room: super_admin`);
+      }
     });
 
     socket.on('disconnect', () => {
-      console.log(`🔌 Socket disconnected: ${socket.id}`);
+      if (process.env.NODE_ENV === 'development') {
+        console.log(`🔌 Socket disconnected: ${socket.id}`);
+      }
     });
   });
 

@@ -50,6 +50,28 @@ const siteSchema = new mongoose.Schema(
       enum: ['planned', 'in_progress', 'completed', 'on_hold'],
       default: 'planned',
     },
+    wallTemplateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'WallCategoryTemplate',
+      default: null,
+    },
+    transportRatePerTrip: {
+      type: Number,
+      default: 0,
+      min: [0, 'Transport rate cannot be negative'],
+    },
+    labourRatePerManDay: {
+      type: Number,
+      default: 0,
+      min: [0, 'Labour rate cannot be negative'],
+    },
+    panelSellingPrice: { type: Number, default: 0 },
+    poleSellingPrice: { type: Number, default: 0 },
+    beamSellingPrice: { type: Number, default: 0 },
+    topBeamSellingPrice: { type: Number, default: 0 },
+    cementRate: { type: Number, default: 0 },
+    steelRate: { type: Number, default: 0 },
+    aggregateRate: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

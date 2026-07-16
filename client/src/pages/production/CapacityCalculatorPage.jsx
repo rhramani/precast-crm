@@ -71,7 +71,7 @@ const CapacityCalculatorPage = () => {
       <div className="card" style={{ background: 'var(--color-surface)', padding: '24px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)' }}>
         <form onSubmit={handleCalculate} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div className="field-group" style={{ minWidth: '240px', flex: 1 }}>
-            <label className="field-label field-label--required">Select Product</label>
+            <label className="field-label field-label--required">Product</label>
             <select
               className="field-select"
               value={selectedProductId}

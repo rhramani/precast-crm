@@ -59,6 +59,11 @@ const productSchema = new mongoose.Schema(
       enum: ['active', 'inactive'],
       default: 'active',
     },
+    sellingPrice: {
+      type: Number,
+      default: 0,
+      min: [0, 'Selling price cannot be negative'],
+    },
   },
   { timestamps: true }
 );

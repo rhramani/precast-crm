@@ -27,6 +27,11 @@ const productionOrderSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Produced quantity cannot be negative'],
     },
+    damagedQuantity: {
+      type: Number,
+      default: 0,
+      min: [0, 'Damaged quantity cannot be negative'],
+    },
     bomId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'BOM',

@@ -34,7 +34,7 @@ const quotationSchema = new mongoose.Schema(
   {
     branchId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: 'Branch',
       required: [true, 'Branch ID is required'],
     },
     customerId: {

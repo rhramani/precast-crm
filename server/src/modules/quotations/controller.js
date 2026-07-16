@@ -1,8 +1,8 @@
 const quotationService = require('./service');
 
 const list = async (req, res) => {
-  const { page, limit, search, status } = req.query;
-  const result = await quotationService.listQuotations(req.branchFilter, { page, limit, search, status });
+  const { page, limit, search, status, projectId } = req.query;
+  const result = await quotationService.listQuotations(req.branchFilter, { page, limit, search, status, projectId });
   res.json({ success: true, data: { quotations: result.quotations }, meta: result.meta });
 };
 

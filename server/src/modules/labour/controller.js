@@ -1,8 +1,8 @@
 const labourService = require('./service');
 
 const list = async (req, res) => {
-  const { page, limit, search } = req.query;
-  const result = await labourService.listLabour(req.branchFilter, { page, limit, search });
+  const { page, limit, search, projectId, siteId } = req.query;
+  const result = await labourService.listLabour(req.branchFilter, { page, limit, search, projectId, siteId });
   res.json({ success: true, data: { labourers: result.labourers }, meta: result.meta });
 };
 
@@ -42,11 +42,11 @@ const saveAttendance = async (req, res) => {
 };
 
 const getAttendance = async (req, res) => {
-  const { date } = req.query;
-  if (!date) {
-    return res.status(400).json({ success: false, message: 'Date parameter is required to query attendance log' });
+  const { date, startDate, endDate } = req.query;
+  if (!date && (!startDate || !endDate)) {
+    return res.status(400).json({ success: false, message: 'Date parameter or startDate/endDate range is required' });
   }
-  const result = await labourService.listAttendance(req.branchFilter, { date });
+  const result = await labourService.listAttendance(req.branchFilter, { date, startDate, endDate });
   res.json({ success: true, data: { attendance: result } });
 };
 

@@ -62,6 +62,7 @@ const ProductionOrdersPage = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [completeForm, setCompleteForm] = useState({
     producedQuantity: '',
+    damagedQuantity: '0',
     remarks: '',
   });
 
@@ -93,6 +94,7 @@ const ProductionOrdersPage = () => {
     setSelectedOrder(order);
     setCompleteForm({
       producedQuantity: order.plannedQuantity,
+      damagedQuantity: '0',
       remarks: '',
     });
     setValidationErrors({});
@@ -130,8 +132,20 @@ const ProductionOrdersPage = () => {
     e.preventDefault();
     setValidationErrors({});
     const qty = Number(completeForm.producedQuantity);
+    const damagedQty = Number(completeForm.damagedQuantity || 0);
+
+    const errors = {};
     if (completeForm.producedQuantity === '' || isNaN(qty) || qty < 0) {
-      setValidationErrors({ producedQuantity: 'Must be a valid produced quantity >= 0' });
+      errors.producedQuantity = 'Must be a valid produced quantity >= 0';
+    }
+    if (completeForm.damagedQuantity !== '' && (isNaN(damagedQty) || damagedQty < 0)) {
+      errors.damagedQuantity = 'Damaged quantity must be a non-negative number';
+    } else if (damagedQty > qty) {
+      errors.damagedQuantity = 'Damaged quantity cannot exceed actual produced quantity';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
       return;
     }
 
@@ -139,6 +153,7 @@ const ProductionOrdersPage = () => {
       await completeOrder({
         id: selectedOrder._id,
         producedQuantity: qty,
+        damagedQuantity: damagedQty,
         remarks: completeForm.remarks,
       }).unwrap();
       setCompleteDrawerOpen(false);
@@ -158,12 +173,12 @@ const ProductionOrdersPage = () => {
   const columns = [
     { key: 'orderNumber', label: 'Order Number', sortable: true },
     { key: 'productId', label: 'Product', render: (val) => val?.productName || '—' },
-    { key: 'plannedQuantity', label: 'Planned Qty', render: (val, row) => `${val} ${row.productId?.unit || ''}` },
-    { key: 'producedQuantity', label: 'Produced Qty', render: (val, row) => `${val} ${row.productId?.unit || ''}` },
+    { key: 'plannedQuantity', label: 'Planned Quantity', render: (val, row) => `${val} ${row.productId?.unit || ''}` },
+    { key: 'producedQuantity', label: 'Produced Quantity', render: (val, row) => `${val} ${row.productId?.unit || ''}` },
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'startDate',
-      label: 'Dates (Start / Complete)',
+      label: 'Start / Completion Dates',
       render: (_, row) => (
         <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>
           S: {row.startDate ? new Date(row.startDate).toLocaleDateString() : '—'} /{' '}
@@ -210,7 +225,7 @@ const ProductionOrdersPage = () => {
       </div>
 
       <DataTable
-        title="Production Orders pipeline"
+        title="Production Orders Pipeline"
         columns={columns}
         data={data?.data?.orders || []}
         total={data?.meta?.total || 0}
@@ -263,13 +278,13 @@ const ProductionOrdersPage = () => {
         {validationErrors.general && <div className="field-error">{validationErrors.general}</div>}
 
         <div className="field-group">
-          <label className="field-label field-label--required">Select Product</label>
+          <label className="field-label field-label--required">Product</label>
           <select
             className="field-select"
             value={form.productId}
             onChange={(e) => setForm({ ...form, productId: e.target.value })}
           >
-            <option value="">Choose product...</option>
+            <option value="">Choose Product...</option>
             {products
               .filter((p) => p.status === 'active')
               .map((p) => (
@@ -368,6 +383,18 @@ const ProductionOrdersPage = () => {
             placeholder="e.g. 100"
           />
           {validationErrors.producedQuantity && <span className="field-error">{validationErrors.producedQuantity}</span>}
+        </div>
+
+        <div className="field-group">
+          <label className="field-label">Damaged Quantity</label>
+          <input
+            type="number"
+            className="field-input"
+            value={completeForm.damagedQuantity}
+            onChange={(e) => setCompleteForm({ ...completeForm, damagedQuantity: e.target.value })}
+            placeholder="e.g. 5"
+          />
+          {validationErrors.damagedQuantity && <span className="field-error">{validationErrors.damagedQuantity}</span>}
         </div>
 
         <div className="field-group">

@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Dispatch = require('./model');
 const FinishedGoodsInventory = require('../inventory/model');
 const Site = require('../sites/model');
+const Product = require('../products/model');
 
 const buildMeta = (page, limit, total) => ({
   page,
@@ -26,6 +27,7 @@ const listDispatches = async (branchFilter, { page = 1, limit = 10, search, stat
     Dispatch.find(filter)
       .populate('projectId', 'projectName')
       .populate('siteId', 'siteName siteAddress')
+      .populate('items.productId', 'productName productCode unit')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit)),

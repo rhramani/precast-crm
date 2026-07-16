@@ -216,7 +216,6 @@ const forgotPassword = async (email) => {
   
   await account.save();
 
-  console.log(`[Forgot Password] Reset code for ${email} is ${otpCode}`);
   await sendResetOtpEmail(email, otpCode);
 
   return {

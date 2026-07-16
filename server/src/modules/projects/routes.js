@@ -13,5 +13,6 @@ router.get('/:id',            controller.getOne);
 router.put('/:id',            validate(updateProjectSchema), controller.update);
 router.delete('/:id',         controller.remove);
 router.get('/:id/sites',      branchScope, controller.getSites);
+router.get('/:id/combined-requirements', branchScope, controller.getCombinedRequirements);
 
 module.exports = router;

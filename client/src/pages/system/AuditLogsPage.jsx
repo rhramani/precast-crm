@@ -66,12 +66,12 @@ const AuditLogsPage = () => {
     },
     {
       key: 'referenceId',
-      label: 'Affected Record ID',
+      label: 'Record ID',
       render: (val) => val ? <code>{val}</code> : <span style={{ color: 'var(--color-text-secondary)' }}>—</span>,
     },
     {
       key: 'ipAddress',
-      label: 'IP Location',
+      label: 'IP Address',
       render: (val) => val || <span style={{ color: 'var(--color-text-secondary)' }}>Local</span>,
     },
     {
@@ -98,7 +98,7 @@ const AuditLogsPage = () => {
         filters={
           <div style={{ display: 'flex', gap: '12px' }}>
             <div className="filter-group">
-              <label className="field-label">Filter Module</label>
+              <label className="field-label">Module</label>
               <select
                 className="field-select"
                 value={moduleFilter}
@@ -114,7 +114,7 @@ const AuditLogsPage = () => {
               </select>
             </div>
             <div className="filter-group">
-              <label className="field-label">Filter Action</label>
+              <label className="field-label">Action</label>
               <select
                 className="field-select"
                 value={actionFilter}

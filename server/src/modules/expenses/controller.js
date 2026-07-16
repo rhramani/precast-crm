@@ -1,8 +1,8 @@
 const expenseService = require('./service');
 
 const list = async (req, res) => {
-  const { page, limit, search } = req.query;
-  const result = await expenseService.listExpenses(req.branchFilter, { page, limit, search });
+  const { page, limit, search, siteId, projectId } = req.query;
+  const result = await expenseService.listExpenses(req.branchFilter, { page, limit, search, siteId, projectId });
   res.json({ success: true, data: { expenses: result.expenses }, meta: result.meta });
 };
 

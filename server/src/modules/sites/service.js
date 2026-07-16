@@ -1,6 +1,7 @@
 const Site = require('./model');
 const Project = require('../projects/model');
 const SiteCalculation = require('./calculationModel');
+const WallCategoryTemplate = require('../wallTemplates/model');
 
 // 1. Create Site
 const createSite = async (branchId, data) => {
@@ -53,37 +54,278 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
   // Linear length of the wall is represented by siteArea (in meters)
   const length = Number(siteArea);
 
-  // Standard boundary wall spacing:
-  // Post-to-post spacing is 3 meters.
-  const bays = Math.ceil(length / 3) || 1;
+  // Fetch the selected template or fallback to the branch default
+  let template = null;
+  if (site.wallTemplateId) {
+    template = await WallCategoryTemplate.findById(site.wallTemplateId)
+      .populate('products.productId')
+      .populate('installationMaterials.materialId');
+  } else {
+    template = await WallCategoryTemplate.findOne({ branchId: site.branchId, isDefault: true })
+      .populate('products.productId')
+      .populate('installationMaterials.materialId');
+  }
 
-  // Stack of 8 precast panels per bay to reach a standard 2.4 meter height (each panel is 0.3m height)
-  const wallPanels = bays * 8;
-  const poles = bays + 1;
-  const beams = bays;
-  const topBeams = bays;
+  const baySpacing = template ? template.baySpacingMeters || 3 : 3;
+  const bays = Math.ceil(length / baySpacing) || 1;
 
-  // Material estimations:
-  // Panels: 0.5 bags cement, 8kg steel, 50kg aggregate
-  // Poles: 1.0 bag cement, 15kg steel, 100kg aggregate
-  const cement = Math.ceil((wallPanels * 0.5) + (poles * 1.0));
-  const steel = Math.ceil((wallPanels * 8) + (poles * 15));
-  const aggregate = Math.ceil((wallPanels * 50) + (poles * 100)); // in kg
+  // Identify products in the template by their category mappings
+  let panelQtyPerBay = 8;
+  let poleQtyPerBay = 1;
+  let beamQtyPerBay = 1;
+  let topBeamQtyPerBay = 1;
 
-  // Labor: 1 crew day per 15 meters. Crew is 4 workers.
-  const installationDays = Math.ceil(length / 15) || 1;
-  const labour = installationDays * 4; // man-days
+  let panelProduct = null;
+  let poleProduct = null;
+  let beamProduct = null;
+  let topBeamProduct = null;
 
-  // Transport: 1 flatbed truck load holds 20 slabs or 15 poles.
-  const transportTrips = Math.ceil((wallPanels / 20) + (poles / 15)) || 1;
+  if (template && template.products) {
+    for (const pLine of template.products) {
+      const prod = pLine.productId;
+      if (!prod) continue;
+      
+      const cat = prod.category;
+      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(cat)) {
+        panelQtyPerBay = pLine.qtyPerBay;
+        panelProduct = prod;
+      } else if (['pole', 'column'].includes(cat)) {
+        poleQtyPerBay = pLine.qtyPerBay;
+        poleProduct = prod;
+      } else if (cat === 'beam') {
+        beamQtyPerBay = pLine.qtyPerBay;
+        beamProduct = prod;
+      } else if (cat === 'top_beam') {
+        topBeamQtyPerBay = pLine.qtyPerBay;
+        topBeamProduct = prod;
+      }
+    }
+  }
 
-  // Estimations using direct component purchase costs:
-  // panel = ₹700, pole = ₹1400, installer/man-day = ₹800, transport trip = ₹3500
-  const panelCost = wallPanels * 700;
-  const poleCost = poles * 1400;
-  const laborCost = labour * 800;
-  const transportCost = transportTrips * 3500;
-  const estimatedCost = panelCost + poleCost + laborCost + transportCost;
+  const wallPanels = bays * panelQtyPerBay;
+  const poles = (bays * poleQtyPerBay) + 1; // 1 extra post at the end
+  const beams = bays * beamQtyPerBay;
+  const topBeams = bays * topBeamQtyPerBay;
+
+  // Site Installation Raw Materials (needed on client's site for Column foundations & joint grouting)
+  // Dynamically calculated using template's installationMaterials array populated from Raw Material Master
+  let cement = 0;
+  let steel = 0;
+  let aggregate = 0;
+  let rawMaterialCost = 0;
+  const rawMaterialBreakdown = [];
+
+  if (template && template.installationMaterials && template.installationMaterials.length > 0) {
+    for (const item of template.installationMaterials) {
+      const mat = item.materialId;
+      if (!mat) continue;
+
+      let multiplier = 0;
+      if (item.type === 'per_pole') {
+        multiplier = poles;
+      } else if (item.type === 'per_meter') {
+        multiplier = length;
+      }
+
+      const totalQty = item.qty * multiplier;
+      let rate = mat.purchaseRate || 0;
+      if (mat.category === 'cement' && site.cementRate) {
+        rate = site.cementRate;
+      } else if (mat.category === 'steel' && site.steelRate) {
+        rate = site.steelRate;
+      } else if (['sand', 'aggregate', 'stone_dust', 'fly_ash'].includes(mat.category) && site.aggregateRate) {
+        rate = site.aggregateRate;
+      }
+      const totalCost = totalQty * rate;
+      rawMaterialCost += totalCost;
+
+      rawMaterialBreakdown.push({
+        materialId: mat._id,
+        materialName: mat.materialName,
+        materialCode: mat.materialCode,
+        category: mat.category,
+        quantity: Math.ceil(totalQty),
+        unit: mat.unit,
+        rate,
+        totalCost: Math.ceil(totalCost)
+      });
+
+      if (mat.category === 'cement') {
+        cement += totalQty;
+      } else if (mat.category === 'steel') {
+        steel += totalQty;
+      } else if (['sand', 'aggregate', 'stone_dust', 'fly_ash'].includes(mat.category)) {
+        aggregate += totalQty;
+      }
+    }
+  } else {
+    // Fallback standard defaults if template has no installation materials defined
+    cement = (poles * 0.5) + (length * 0.05);
+    steel = poles * 2;
+    aggregate = poles * 50;
+    // Assume standard rate presets: Cement: ₹400/bag, Steel: ₹60/kg, Aggregate: ₹2/kg
+    rawMaterialCost = (cement * 400) + (steel * 60) + (aggregate * 2);
+  }
+
+  cement = Math.ceil(cement);
+  steel = Math.ceil(steel);
+  aggregate = Math.ceil(aggregate);
+  rawMaterialCost = Math.ceil(rawMaterialCost);
+
+  // Labor: Calculate planned duration from site's start & end dates, falling back to length estimation if undefined
+  let installationDays = 1;
+  if (site.startDate && site.endDate) {
+    const diffTime = Math.abs(new Date(site.endDate) - new Date(site.startDate));
+    installationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
+  } else {
+    installationDays = Math.ceil(length / 15) || 1;
+  }
+
+  // Fetch actual logs from the database tabs (Dispatches & Labour Attendance)
+  const Labour = require('../labour/model');
+  const LabourAttendance = require('../labour/attendanceModel');
+  const Dispatch = require('../dispatch/model');
+
+  const actualDispatches = await Dispatch.find({ siteId: id });
+  const transportTrips = actualDispatches.length;
+
+  // Query attendance logs directly assigned to this site
+  const directAttendance = await LabourAttendance.find({
+    siteId: id,
+    status: { $in: ['present', 'half_day'] }
+  }).populate('labourId');
+
+  // Fallback for older records: find labourers currently assigned to this site and get their logs that don't have siteId set
+  const siteLabourers = await Labour.find({ siteId: id });
+  const labourIds = siteLabourers.map((l) => l._id);
+  
+  const fallbackAttendance = labourIds.length > 0 ? await LabourAttendance.find({
+    labourId: { $in: labourIds },
+    siteId: { $exists: false },
+    status: { $in: ['present', 'half_day'] }
+  }).populate('labourId') : [];
+
+  const attendance = [...directAttendance, ...fallbackAttendance];
+
+  let labour = 0;
+  attendance.forEach((att) => {
+    if (att.status === 'present') {
+      labour += 1;
+    } else if (att.status === 'half_day') {
+      labour += 0.5;
+    }
+  });
+
+  // Fetch detailed breakdown of actual dispatches
+  const dispatchesBreakdown = actualDispatches.map(d => ({
+    challanNumber: d.dispatchNumber,
+    dispatchDate: d.dispatchedDate || d.createdAt,
+    driverName: d.transportDetails?.driverName || '—',
+    vehicleNumber: d.transportDetails?.vehicleNumber || '—',
+    status: d.status
+  }));
+
+  // Fetch detailed breakdown of labour attendance
+  const labourBreakdown = [];
+  if (siteLabourers && siteLabourers.length > 0) {
+    siteLabourers.forEach(lab => {
+      const atts = attendance.filter(a => {
+        const aLabId = a.labourId?._id || a.labourId;
+        return aLabId.toString() === lab._id.toString();
+      });
+      let days = 0;
+      atts.forEach(a => {
+        if (a.status === 'present') days += 1;
+        else if (a.status === 'half_day') days += 0.5;
+      });
+      if (days > 0) {
+        const wages = lab.dailyWages || 800;
+        labourBreakdown.push({
+          labourName: lab.labourName,
+          labourType: lab.labourType,
+          daysLogged: days,
+          dailyWages: wages,
+          totalCost: days * wages
+        });
+      }
+    });
+  }
+
+  // Dynamically resolve product selling prices, falling back to site overrides, then Product Master, then standard presets
+  const panelPrice = site.panelSellingPrice || (panelProduct ? (panelProduct.sellingPrice || 700) : 700);
+  const polePrice = site.poleSellingPrice || (poleProduct ? (poleProduct.sellingPrice || 1400) : 1400);
+  const beamPrice = site.beamSellingPrice || (beamProduct ? (beamProduct.sellingPrice || 500) : 500);
+  const topBeamPrice = site.topBeamSellingPrice || (topBeamProduct ? (topBeamProduct.sellingPrice || 450) : 450);
+
+  const panelCost = wallPanels * panelPrice;
+  const poleCost = poles * polePrice;
+  const beamCost = beams * beamPrice;
+  const topBeamCost = topBeams * topBeamPrice;
+
+  // Resolve average crew daily wage rates based on actual labourers assigned to this site, or active database workers in the branch
+  let estimatedDailyWage = 0;
+  let crewSize = 0;
+  let compositionText = '';
+  let masonRate = 0;
+  let helperRate = 0;
+
+  if (siteLabourers && siteLabourers.length > 0) {
+    crewSize = siteLabourers.length;
+    estimatedDailyWage = siteLabourers.reduce((sum, lab) => sum + (lab.dailyWages || 0), 0);
+    
+    // Group and count by labourType
+    const counts = {};
+    const rates = {};
+    siteLabourers.forEach(l => {
+      counts[l.labourType] = (counts[l.labourType] || 0) + 1;
+      rates[l.labourType] = (rates[l.labourType] || 0) + (l.dailyWages || 0);
+    });
+
+    const parts = Object.keys(counts).map(type => {
+      const count = counts[type];
+      const avgRate = Math.round(rates[type] / count);
+      const label = count === 1 ? type.toUpperCase() : `${type.toUpperCase()}s`;
+      return `${count} ${label} @ ₹${avgRate.toLocaleString('en-IN')}/day`;
+    });
+    compositionText = parts.join(' + ');
+
+    // Extract average rates for backwards compatibility
+    const masonsList = siteLabourers.filter(l => l.labourType === 'mason');
+    const helpersList = siteLabourers.filter(l => l.labourType === 'helper');
+    masonRate = masonsList.length > 0 ? Math.round(masonsList.reduce((s, m) => s + (m.dailyWages || 0), 0) / masonsList.length) : 1200;
+    helperRate = helpersList.length > 0 ? Math.round(helpersList.reduce((s, h) => s + (h.dailyWages || 0), 0) / helpersList.length) : 700;
+  } else {
+    // Resolve average crew daily wage rates from active database workers in the branch
+    const activeLabourers = await Labour.find({ status: 'active', branchId: site.branchId });
+    const activeMasons = activeLabourers.filter(l => l.labourType === 'mason');
+    const activeHelpers = activeLabourers.filter(l => l.labourType === 'helper');
+
+    masonRate = activeMasons.length > 0 
+      ? Math.round(activeMasons.reduce((s, m) => s + (m.dailyWages || 0), 0) / activeMasons.length) 
+      : 1200; // default mason rate if no active mason profile exists
+    
+    helperRate = activeHelpers.length > 0 
+      ? Math.round(activeHelpers.reduce((s, h) => s + (h.dailyWages || 0), 0) / activeHelpers.length) 
+      : 700; // default helper rate if no active helper profile exists
+
+    // Use site-wise labor rate override if specified and greater than 0
+    if (site.labourRatePerManDay && site.labourRatePerManDay > 0) {
+      helperRate = site.labourRatePerManDay;
+      masonRate = Math.round(site.labourRatePerManDay * 1.5);
+    }
+
+    crewSize = 4;
+    estimatedDailyWage = (1 * masonRate) + (3 * helperRate);
+    compositionText = `1 MASON @ ₹${masonRate.toLocaleString('en-IN')}/day + 3 HELPERS @ ₹${helperRate.toLocaleString('en-IN')}/day each`;
+  }
+
+  const estimatedLaborCost = installationDays * estimatedDailyWage;
+
+  const estimatedTrips = Math.ceil(wallPanels / 50) || 1; // Capacity of 50 panels per truck trip
+  const transportRate = (site.transportRatePerTrip && site.transportRatePerTrip > 0) ? site.transportRatePerTrip : 3500;
+  const estimatedLogisticsCost = estimatedTrips * transportRate;
+
+  const estimatedCost = panelCost + poleCost + beamCost + topBeamCost + rawMaterialCost + estimatedLaborCost + estimatedLogisticsCost;
 
   const result = {
     wallPanels,
@@ -94,12 +336,31 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
     steel,
     aggregate,
     labour,
+    labourBreakdown,
     installationDays,
     transportTrips,
+    dispatchesBreakdown,
     estimatedCost,
+    rawMaterialCost,
+    rawMaterialBreakdown,
+    transportRate,
+    prices: {
+      panel: panelPrice,
+      pole: polePrice,
+      beam: beamPrice,
+      topBeam: topBeamPrice,
+    },
+    laborEstimate: {
+      crewSize,
+      masonRate,
+      helperRate,
+      composition: compositionText,
+      avgDailyWage: crewSize > 0 ? Math.round(estimatedDailyWage / crewSize) : 800,
+      totalCost: estimatedLaborCost
+    }
   };
 
-  // We can choose to persist this calculation reference for reports/logs
+  // Persist this calculation reference for reports/logs
   await SiteCalculation.create({
     siteId: site._id,
     siteArea: length,
@@ -110,7 +371,9 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
 };
 
 const getSite = async (id, branchFilter) => {
-  const site = await Site.findOne({ _id: id, ...branchFilter }).populate('projectId', 'projectName customerId');
+  const site = await Site.findOne({ _id: id, ...branchFilter })
+    .populate('projectId', 'projectName customerId')
+    .populate('wallTemplateId', 'name category');
   return site;
 };
 

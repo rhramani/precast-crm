@@ -31,6 +31,12 @@ export const productApi = apiSlice.injectEndpoints({
       query: (id) => ({ url: `/products/${id}`, method: 'DELETE' }),
       invalidatesTags: ['Product'],
     }),
+
+    // Returns distinct category values that exist in Product Master for this branch
+    getProductCategories: builder.query({
+      query: () => '/products/categories',
+      providesTags: ['Product'],
+    }),
   }),
 });
 
@@ -41,4 +47,5 @@ export const {
   useUpdateProductMutation,
   useUpdateProductStatusMutation,
   useDeleteProductMutation,
+  useGetProductCategoriesQuery,
 } = productApi;

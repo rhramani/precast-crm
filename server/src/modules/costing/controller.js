@@ -9,6 +9,16 @@ const getSiteCosting = async (req, res) => {
   });
 };
 
+const getProjectCosting = async (req, res) => {
+  const result = await costingService.calculateProjectCosting(req.params.projectId, req.branchFilter);
+  res.json({
+    success: true,
+    message: 'Project actual costing calculations completed',
+    data: result,
+  });
+};
+
 module.exports = {
   getSiteCosting,
+  getProjectCosting,
 };

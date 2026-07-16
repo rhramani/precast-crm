@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const Branch = require('../src/modules/branches/model');
 const RawMaterial = require('../src/modules/rawMaterials/model');
 const Product = require('../src/modules/products/model');
+const Supplier = require('../src/modules/purchases/supplierModel');
 
 const seed = async () => {
   await mongoose.connect(process.env.MONGO_URI);
@@ -30,18 +31,50 @@ const seed = async () => {
 
   const branchId = branch._id;
 
+  // 1.5. Mock Suppliers
+  const suppliersData = [
+    { supplierName: 'Ultratech Cement Ltd', contactPerson: 'Arvind Sharma', mobileNumber: '+919876543211', email: 'sales@ultratech.com', address: 'Mumbai Head Office', gstNumber: '27AAAUC1234A1Z1', paymentTerms: 'Net 30' },
+    { supplierName: 'Ganga Sand Traders', contactPerson: 'Ramesh Singh', mobileNumber: '+919876543212', email: 'gangasand@gmail.com', address: 'Ghat Area, Patna', gstNumber: '10AAAGS5678B1Z2', paymentTerms: 'COD' },
+    { supplierName: 'Jindal Steel & Power', contactPerson: 'Vikram Jindal', mobileNumber: '+919876543213', email: 'sales@jindalsteel.com', address: 'OP Jindal Marg, Hisar', gstNumber: '06AAAJG1122C1Z3', paymentTerms: 'Net 45' },
+    { supplierName: 'Krishna Chemicals & Admixtures', contactPerson: 'Dr. S. K. Gupta', mobileNumber: '+919876543214', email: 'info@krishnachem.com', address: 'MIDC Phase 1, Thane', gstNumber: '27AAAKC9988D1Z4', paymentTerms: 'Net 15' },
+    { supplierName: 'Vardhman Flyash Co', contactPerson: 'Sanjay Jain', mobileNumber: '+919876543215', email: 'vardhmanflyash@yahoo.com', address: 'NTPC Plant Area, Singrauli', gstNumber: '23AAAVF4433E1Z5', paymentTerms: 'Net 30' },
+    { supplierName: 'Apex Aggregates & Crusher', contactPerson: 'Manoj Kohli', mobileNumber: '+919876543216', email: 'sales@apexaggregate.com', address: 'Stone Quarry Zone, Faridabad', gstNumber: '06AAAAC7766F1Z6', paymentTerms: 'Net 30' },
+    { supplierName: 'Himalayan Water Corp', contactPerson: 'Raman Negi', mobileNumber: '+919876543217', email: 'info@himalayanwater.com', address: 'Borewell Road, Palwal', gstNumber: '06AAAHW3322G1Z7', paymentTerms: 'Net 15' }
+  ];
+
+  console.log('🌱 Inserting Suppliers...');
+  const supplierIdMap = {};
+  for (const s of suppliersData) {
+    try {
+      const supplierObj = await Supplier.findOneAndUpdate(
+        { supplierName: s.supplierName },
+        s,
+        { upsert: true, new: true, runValidators: true }
+      );
+      if (s.supplierName.includes('Cement')) supplierIdMap.cement = supplierObj._id;
+      if (s.supplierName.includes('Sand')) supplierIdMap.sand = supplierObj._id;
+      if (s.supplierName.includes('Steel')) supplierIdMap.steel = supplierObj._id;
+      if (s.supplierName.includes('Chemicals')) supplierIdMap.chemicals = supplierObj._id;
+      if (s.supplierName.includes('Flyash')) supplierIdMap.flyash = supplierObj._id;
+      if (s.supplierName.includes('Aggregates')) supplierIdMap.aggregates = supplierObj._id;
+      if (s.supplierName.includes('Water')) supplierIdMap.water = supplierObj._id;
+    } catch (e) {
+      console.warn(`⚠️ Failed to upsert supplier ${s.supplierName}:`, e.message);
+    }
+  }
+
   // 2. 10 Mock Raw Materials
   const rawMaterialsData = [
-    { materialCode: 'RM-OPC53', materialName: 'OPC 53 Cement', category: 'cement', unit: 'kg', currentQuantity: 15000, minimumQuantity: 3000, purchaseRate: 8.5 },
-    { materialCode: 'RM-SAND-RIV', materialName: 'River Sand', category: 'sand', unit: 'brass', currentQuantity: 25, minimumQuantity: 5, purchaseRate: 6200 },
-    { materialCode: 'RM-AGG10', materialName: '10mm Blue Metal Aggregate', category: 'aggregate', unit: 'brass', currentQuantity: 18, minimumQuantity: 4, purchaseRate: 4800 },
-    { materialCode: 'RM-AGG20', materialName: '20mm Blue Metal Aggregate', category: 'aggregate', unit: 'brass', currentQuantity: 20, minimumQuantity: 4, purchaseRate: 5000 },
-    { materialCode: 'RM-STL08', materialName: '8mm TMT Steel Rebar', category: 'steel', unit: 'kg', currentQuantity: 2500, minimumQuantity: 500, purchaseRate: 64 },
-    { materialCode: 'RM-STL10', materialName: '10mm TMT Steel Rebar', category: 'steel', unit: 'kg', currentQuantity: 3000, minimumQuantity: 500, purchaseRate: 62 },
-    { materialCode: 'RM-CHEM-PL', materialName: 'Superplasticizer Chemical Admixture', category: 'chemical', unit: 'kg', currentQuantity: 450, minimumQuantity: 100, purchaseRate: 140 },
-    { materialCode: 'RM-FLYASH', materialName: 'Premium Class F Fly Ash', category: 'fly_ash', unit: 'kg', currentQuantity: 8000, minimumQuantity: 2000, purchaseRate: 3.2 },
-    { materialCode: 'RM-STDUST', materialName: 'Fine Stone Dust', category: 'stone_dust', unit: 'brass', currentQuantity: 15, minimumQuantity: 3, purchaseRate: 3100 },
-    { materialCode: 'RM-WATER', materialName: 'Processed Borewell Water', category: 'water', unit: 'litres', currentQuantity: 25000, minimumQuantity: 5000, purchaseRate: 0.15 }
+    { materialCode: 'RM-OPC53', materialName: 'OPC 53 Cement', category: 'cement', unit: 'kg', currentQuantity: 15000, minimumQuantity: 3000, purchaseRate: 8.5, supplierId: supplierIdMap.cement },
+    { materialCode: 'RM-SAND-RIV', materialName: 'River Sand', category: 'sand', unit: 'brass', currentQuantity: 25, minimumQuantity: 5, purchaseRate: 6200, supplierId: supplierIdMap.sand },
+    { materialCode: 'RM-AGG10', materialName: '10mm Blue Metal Aggregate', category: 'aggregate', unit: 'brass', currentQuantity: 18, minimumQuantity: 4, purchaseRate: 4800, supplierId: supplierIdMap.aggregates },
+    { materialCode: 'RM-AGG20', materialName: '20mm Blue Metal Aggregate', category: 'aggregate', unit: 'brass', currentQuantity: 20, minimumQuantity: 4, purchaseRate: 5000, supplierId: supplierIdMap.aggregates },
+    { materialCode: 'RM-STL08', materialName: '8mm TMT Steel Rebar', category: 'steel', unit: 'kg', currentQuantity: 2500, minimumQuantity: 500, purchaseRate: 64, supplierId: supplierIdMap.steel },
+    { materialCode: 'RM-STL10', materialName: '10mm TMT Steel Rebar', category: 'steel', unit: 'kg', currentQuantity: 3000, minimumQuantity: 500, purchaseRate: 62, supplierId: supplierIdMap.steel },
+    { materialCode: 'RM-CHEM-PL', materialName: 'Superplasticizer Chemical Admixture', category: 'chemical', unit: 'kg', currentQuantity: 450, minimumQuantity: 100, purchaseRate: 140, supplierId: supplierIdMap.chemicals },
+    { materialCode: 'RM-FLYASH', materialName: 'Premium Class F Fly Ash', category: 'fly_ash', unit: 'kg', currentQuantity: 8000, minimumQuantity: 2000, purchaseRate: 3.2, supplierId: supplierIdMap.flyash },
+    { materialCode: 'RM-STDUST', materialName: 'Fine Stone Dust', category: 'stone_dust', unit: 'brass', currentQuantity: 15, minimumQuantity: 3, purchaseRate: 3100, supplierId: supplierIdMap.aggregates },
+    { materialCode: 'RM-WATER', materialName: 'Processed Borewell Water', category: 'water', unit: 'litres', currentQuantity: 25000, minimumQuantity: 5000, purchaseRate: 0.15, supplierId: supplierIdMap.water }
   ];
 
   console.log('🌱 Inserting Raw Materials...');

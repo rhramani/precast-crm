@@ -19,7 +19,9 @@ export const useNotificationSocket = () => {
       if (socket) {
         socket.disconnect();
         socket = null;
-        console.log('🔌 Disconnected and cleared socket connection on logout');
+        if (import.meta.env.DEV) {
+          console.log('🔌 Disconnected and cleared socket connection on logout');
+        }
       }
       return;
     }
@@ -34,18 +36,24 @@ export const useNotificationSocket = () => {
       });
 
       socket.on('connect', () => {
-        console.log('📡 Connected to WebSockets server');
+        if (import.meta.env.DEV) {
+          console.log('📡 Connected to WebSockets server');
+        }
         joinAppropriateRooms();
       });
 
       socket.on('new_notification', (notification) => {
-        console.log('🔔 New notification received via socket:', notification);
+        if (import.meta.env.DEV) {
+          console.log('🔔 New notification received via socket:', notification);
+        }
         // Invalidate RTK query cache to trigger refetch and update UI badges/feeds
         dispatch(notificationApi.util.invalidateTags(['Notification']));
       });
 
       socket.on('disconnect', () => {
-        console.log('🔌 Disconnected from WebSockets server');
+        if (import.meta.env.DEV) {
+          console.log('🔌 Disconnected from WebSockets server');
+        }
       });
     } else if (socket.connected) {
       // If already connected, join rooms when branch/user context changes

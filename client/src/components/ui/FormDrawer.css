@@ -37,6 +37,7 @@
   flex-direction: column;
   transform: translateX(100%);
   transition: transform var(--transition-base);
+  overflow: hidden;
 }
 
 .drawer--open {
@@ -84,10 +85,15 @@
 .drawer__body {
   flex: 1;
   overflow-y: auto;
+  min-height: 0;
   padding: var(--space-6);
   display: flex;
   flex-direction: column;
   gap: var(--space-5);
+}
+
+.drawer__body > * {
+  flex-shrink: 0;
 }
 
 .drawer__body::-webkit-scrollbar { width: 4px; }
@@ -105,7 +111,7 @@
   padding: var(--space-4) var(--space-6);
   border-top: 1px solid var(--color-border);
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.4);
+  background: var(--color-surface);
 }
 
 /* ── Form field helpers ────────── */
@@ -140,23 +146,24 @@
 .field-select,
 .field-textarea {
   padding: 10px 14px;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-sm);
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
   font-size: var(--text-sm);
   font-family: inherit;
   color: var(--color-text-primary);
-  background: #F8FAFC;
+  background: #FFFFFF;
   transition: all var(--transition-fast) ease;
   outline: none;
   width: 100%;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
 .field-input:focus,
 .field-select:focus,
 .field-textarea:focus {
-  border-color: var(--color-accent); /* Focus highlight brand orange */
-  box-shadow: 0 0 0 3px rgba(var(--color-accent-rgb), 0.12);
-  background: var(--color-surface);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(24, 38, 80, 0.08);
+  background: #FFFFFF;
 }
 
 .field-input::placeholder,

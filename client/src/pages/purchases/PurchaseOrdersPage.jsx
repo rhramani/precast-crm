@@ -228,9 +228,9 @@ const PurchaseOrdersPage = () => {
   };
 
   const columns = [
-    { key: 'poNumber', label: 'PO Number', sortable: true },
+    { key: 'poNumber', label: 'Purchase Order Number', sortable: true },
     { key: 'supplierId', label: 'Supplier', render: (val) => val?.supplierName || '—' },
-    { key: 'grandTotal', label: 'Total Value', render: (val) => `₹${val.toLocaleString()}` },
+    { key: 'grandTotal', label: 'Total Value (₹)', render: (val) => `₹${val.toLocaleString()}` },
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'expectedDeliveryDate',
@@ -278,7 +278,7 @@ const PurchaseOrdersPage = () => {
       </div>
 
       <DataTable
-        title="Purchase Orders catalog"
+        title="Purchase Orders Catalog"
         columns={columns}
         data={data?.data?.orders || []}
         total={data?.meta?.total || 0}
@@ -388,7 +388,7 @@ const PurchaseOrdersPage = () => {
 
           <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
             <div className="field-group">
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Select Raw Material</label>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Raw Material</label>
               <select
                 className="field-select"
                 value={stageItem.materialId}
@@ -401,7 +401,7 @@ const PurchaseOrdersPage = () => {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Qty</label>
+              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Quantity</label>
               <input
                 type="number"
                 className="field-input"
@@ -429,8 +429,8 @@ const PurchaseOrdersPage = () => {
                 <tr className="data-table__head">
                   <th className="data-table__th">Material Name</th>
                   <th className="data-table__th">Quantity</th>
-                  <th className="data-table__th">Unit Rate</th>
-                  <th className="data-table__th">Total (Net)</th>
+                  <th className="data-table__th">Unit Rate (₹)</th>
+                  <th className="data-table__th">Total (₹)</th>
                   <th className="data-table__th">Action</th>
                 </tr>
               </thead>
@@ -482,7 +482,7 @@ const PurchaseOrdersPage = () => {
         </p>
 
         <div className="field-group">
-          <label className="field-label">Receipt Notes / Remarks</label>
+          <label className="field-label">Receipt Remarks</label>
           <textarea
             className="field-textarea"
             value={receiveForm.remarks}

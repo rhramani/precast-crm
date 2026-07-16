@@ -1,14 +1,21 @@
 import { useState } from 'react';
+import { Edit2, ClipboardList, Receipt, DollarSign, CheckCircle, AlertTriangle, History } from 'lucide-react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { selectCurrentRole, selectCurrentBranchId } from '../../store/slices/authSlice';
 import {
   useGetCustomerQuery,
   useGetCustomerLedgerQuery,
   useGetCustomerOutstandingQuery,
   useUpdateCustomerMutation,
 } from '../../store/api/customerApi';
+import { useCreatePaymentMutation, useGetPaymentsQuery } from '../../store/api/paymentApi';
 import { useGetProjectsQuery } from '../../store/api/projectApi';
+import { useGetBranchesQuery } from '../../store/api/branchApi';
 import FormDrawer from '../../components/ui/FormDrawer';
 import StatusBadge from '../../components/ui/StatusBadge';
+import PhoneInput from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import './CustomerDetail.css';
 
 /* ── Avatar helper ───────────────────────────────────────── */
@@ -30,7 +37,7 @@ const StatCard = ({ label, value, valueClass, sub }) => (
 
 /* ── Info Item ───────────────────────────────────────────── */
 const InfoItem = ({ label, value }) => (
-  <div>
+  <div className="cd-info-item">
     <div className="cd-info-item__label">{label}</div>
     <div className={`cd-info-item__value ${!value ? 'cd-info-item__value--empty' : ''}`}>
       {value || '—'}
@@ -65,18 +72,82 @@ const CustomerDetailPage = () => {
   /* ── Mutations ───────────────────────────────────────── */
   const [updateCustomer] = useUpdateCustomerMutation();
 
+  /* ── Redux auth state ── */
+  const userRole = useSelector(selectCurrentRole);
+  const userBranchId = useSelector(selectCurrentBranchId);
+
+  /* ── Log Payment states ── */
+  const [createPayment] = useCreatePaymentMutation();
+  const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
+  const [paymentForm, setPaymentForm] = useState({
+    amount: '',
+    paymentMethod: 'bank_transfer',
+    paymentNumber: '',
+    paymentDate: '',
+    referenceNumber: '',
+    remarks: '',
+    branchId: '',
+  });
+  const [paymentValidationErrors, setPaymentValidationErrors] = useState({});
+
+  /* ── Extra queries ── */
+  const { data: paymentsRes, isLoading: paymentsLoading } = useGetPaymentsQuery({ customerId: id });
+  const payments = paymentsRes?.data?.payments || [];
+  const { data: branchData } = useGetBranchesQuery({ limit: 100 });
+  const branches = branchData?.data?.branches || [];
+
+  const handleOpenLogPayment = () => {
+    setPaymentForm({
+      amount: '',
+      paymentMethod: 'bank_transfer',
+      paymentNumber: '',
+      paymentDate: new Date().toISOString().split('T')[0],
+      referenceNumber: '',
+      remarks: '',
+      branchId: userRole === 'super_admin' ? '' : userBranchId || '',
+    });
+    setPaymentValidationErrors({});
+    setPaymentDrawerOpen(true);
+  };
+
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    setPaymentValidationErrors({});
+
+    const errors = {};
+    const amt = Number(paymentForm.amount);
+    if (!paymentForm.amount || isNaN(amt) || amt <= 0) {
+      errors.amount = 'Amount must be a positive number';
+    }
+    if (userRole === 'super_admin' && !paymentForm.branchId) {
+      errors.branchId = 'Branch assignment is required';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPaymentValidationErrors(errors);
+      return;
+    }
+
+    try {
+      await createPayment({
+        customerId: id,
+        ...paymentForm,
+      }).unwrap();
+      setPaymentDrawerOpen(false);
+    } catch (err) {
+      setPaymentValidationErrors({ general: err?.data?.message || 'Payment registry failed.' });
+    }
+  };
+
   /* ── Edit Drawer ─────────────────────────────────────── */
   const handleOpenEdit = () => {
     setForm({
       customerName: customer?.customerName || '',
-      companyName: customer?.companyName || '',
-      contactPerson: customer?.contactPerson || '',
       mobile: customer?.mobile || '',
       email: customer?.email || '',
       gstNumber: customer?.gstNumber || '',
-      address: customer?.address || '',
-      creditLimit: customer?.creditLimit || 0,
-      paymentTerms: customer?.paymentTerms || '',
+      personalAddress: customer?.personalAddress || '',
+      siteAddress: customer?.siteAddress || '',
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -124,35 +195,44 @@ const CustomerDetailPage = () => {
 
   return (
     <div className="cd-page">
-      {/* ── Header ── */}
-      <div className="cd-header">
+      {/* ── Back Navigation ── */}
+      <div style={{ display: 'flex', alignItems: 'center' }}>
         <button className="cd-header__back" onClick={() => navigate('/customers')}>
-          ← Customers
+          ← Back to Customers
         </button>
+      </div>
+
+      {/* ── Profile Header Card ── */}
+      <div className="cd-header-card">
         <div className="cd-header__identity">
-          <div className="cd-avatar">{getInitials(customer.customerName)}</div>
+          <div className="cd-avatar-ring">
+            <div className="cd-avatar">{getInitials(customer.customerName)}</div>
+          </div>
           <div>
-            <h1 className="cd-header__name">{customer.customerName}</h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+              <h1 className="cd-header__name">{customer.customerName}</h1>
+              <StatusBadge status={customer.status} />
+            </div>
             <p className="cd-header__company">
-              {customer.companyName || 'Individual'} · {customer.mobile}
+              {customer.mobile} {customer.email ? `· ${customer.email}` : ''}
             </p>
           </div>
-          <StatusBadge status={customer.status} />
         </div>
         <div className="cd-header__actions">
-          <button className="btn btn--secondary" onClick={handleOpenEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-            <svg viewBox="0 0 24 24" style={{ fill: 'none', stroke: 'currentColor', strokeWidth: 2, width: 14, height: 14 }}>
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            Edit
+          <button className="btn btn--white" onClick={handleOpenEdit} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <Edit2 size={14} />
+            Edit Profile
+          </button>
+          <button className="btn btn--glass" onClick={handleOpenLogPayment} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <DollarSign size={14} />
+            Log Payment
           </button>
         </div>
       </div>
 
       {/* ── Stat Cards ── */}
       <div className="cd-stats">
-        <div className="cd-stat-card">
+        <div className="cd-stat-card cd-stat-card--accent">
           <span className="cd-stat-card__label">Credit Limit</span>
           <span className="cd-stat-card__value cd-stat-card__value--primary">
             {creditLimit > 0 ? `₹${creditLimit.toLocaleString('en-IN')}` : 'Unlimited'}
@@ -165,44 +245,57 @@ const CustomerDetailPage = () => {
                   style={{ width: `${creditUsed}%` }}
                 />
               </div>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
                 {creditUsed}% used
               </span>
             </>
           )}
         </div>
 
-        <StatCard
-          label="Outstanding Balance"
-          value={`₹${outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-          valueClass={outstandingAmt > 0 ? 'cd-stat-card__value--danger' : 'cd-stat-card__value--success'}
-          sub={outstandingAmt === 0 ? 'All clear' : 'Pending collection'}
-        />
+        <div className={`cd-stat-card ${outstandingAmt > 0 ? 'cd-stat-card--danger' : 'cd-stat-card--success'}`}>
+          <span className="cd-stat-card__label">Outstanding Balance</span>
+          <span className={`cd-stat-card__value ${outstandingAmt > 0 ? 'cd-stat-card__value--danger' : 'cd-stat-card__value--success'}`}>
+            {`₹${outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+          </span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+            {outstandingAmt === 0 ? 'All clear' : 'Pending collection'}
+          </span>
+        </div>
 
-        <StatCard
-          label="Total Invoiced"
-          value={`₹${totalInvoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-          sub={`${ledger?.transactions?.length ?? 0} invoice(s)`}
-        />
+        <div className="cd-stat-card cd-stat-card--info">
+          <span className="cd-stat-card__label">Total Invoiced</span>
+          <span className="cd-stat-card__value" style={{ color: 'var(--color-info)' }}>
+            {`₹${totalInvoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+          </span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+            {`${ledger?.transactions?.length ?? 0} invoice(s)`}
+          </span>
+        </div>
 
-        <StatCard
-          label="Active Projects"
-          value={projectCount}
-          sub="Linked to this customer"
-        />
+        <div className="cd-stat-card cd-stat-card--warning">
+          <span className="cd-stat-card__label">Active Projects</span>
+          <span className="cd-stat-card__value" style={{ color: 'var(--color-warning)' }}>
+            {projectCount}
+          </span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+            Linked to this customer
+          </span>
+        </div>
       </div>
 
       {/* ── Tabs ── */}
       <div className="cd-tabs">
-        {['overview', 'invoices', 'outstanding'].map((tab) => (
+        {['overview', 'invoices', 'payments', 'outstanding'].map((tab) => (
           <button
             key={tab}
             className={`cd-tab ${activeTab === tab ? 'cd-tab--active' : ''}`}
             onClick={() => setActiveTab(tab)}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            {tab === 'overview' && '📋 Overview'}
-            {tab === 'invoices' && '🧾 Invoice Ledger'}
-            {tab === 'outstanding' && '💰 Outstanding'}
+            {tab === 'overview' && <><ClipboardList size={15} /> Overview</>}
+            {tab === 'invoices' && <><Receipt size={15} /> Invoice Ledger</>}
+            {tab === 'payments' && <><History size={15} /> Payment History</>}
+            {tab === 'outstanding' && <><DollarSign size={15} /> Outstanding</>}
           </button>
         ))}
       </div>
@@ -216,17 +309,23 @@ const CustomerDetailPage = () => {
             <div className="cd-info-grid">
               <InfoItem label="Mobile" value={customer.mobile} />
               <InfoItem label="Email" value={customer.email} />
-              <InfoItem label="Contact Person" value={customer.contactPerson} />
               <InfoItem label="GSTIN (GST Number)" value={customer.gstNumber} />
-              <InfoItem label="Payment Terms" value={customer.paymentTerms} />
               <InfoItem label="Member Since" value={new Date(customer.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} />
             </div>
-            {customer.address && (
-              <div style={{ marginTop: 20 }}>
-                <div className="cd-info-item__label">Billing Address</div>
-                <div className="cd-info-item__value" style={{ whiteSpace: 'pre-line' }}>{customer.address}</div>
+            <div className="cd-address-container">
+              <div className="cd-address-card">
+                <div className="cd-address-card__title">Personal Address</div>
+                <div className={`cd-address-card__content ${!customer.personalAddress ? 'cd-info-item__value--empty' : ''}`}>
+                  {customer.personalAddress || '—'}
+                </div>
               </div>
-            )}
+              <div className="cd-address-card">
+                <div className="cd-address-card__title">Site Address</div>
+                <div className={`cd-address-card__content ${!customer.siteAddress ? 'cd-info-item__value--empty' : ''}`}>
+                  {customer.siteAddress || '—'}
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Linked Projects */}
@@ -234,7 +333,7 @@ const CustomerDetailPage = () => {
             <h3 className="cd-panel__title">Linked Projects ({customerProjects.length})</h3>
             {customerProjects.length === 0 ? (
               <div className="cd-empty">
-                <div className="cd-empty__icon">📁</div>
+                <div className="cd-empty__icon" style={{ opacity: 0.5 }}><ClipboardList size={40} /></div>
                 <div className="cd-empty__text">No projects linked to this customer yet.</div>
               </div>
             ) : (
@@ -271,7 +370,7 @@ const CustomerDetailPage = () => {
             <div className="cd-loading">Loading ledger…</div>
           ) : !ledger?.transactions?.length ? (
             <div className="cd-empty">
-              <div className="cd-empty__icon">🧾</div>
+              <div className="cd-empty__icon" style={{ opacity: 0.5 }}><Receipt size={40} /></div>
               <div className="cd-empty__text">No invoices raised for this customer yet.</div>
             </div>
           ) : (
@@ -394,7 +493,9 @@ const CustomerDetailPage = () => {
                     fontSize: 'var(--text-sm)',
                   }}
                 >
-                  ✅ No outstanding balance — this customer is fully settled.
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <CheckCircle size={16} /> No outstanding balance — this customer is fully settled.
+                  </span>
                 </div>
               ) : (
                 <div
@@ -408,10 +509,12 @@ const CustomerDetailPage = () => {
                     fontSize: 'var(--text-sm)',
                   }}
                 >
-                  ⚠️ Outstanding of ₹{outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })} is pending collection.
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertTriangle size={16} /> Outstanding of ₹{outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })} is pending collection.
+                  </span>
                   {creditLimit > 0 && outstandingAmt > creditLimit && (
                     <span style={{ display: 'block', marginTop: 4 }}>
-                      🔴 Exceeds credit limit by ₹{(outstandingAmt - creditLimit).toLocaleString('en-IN')}.
+                      <AlertTriangle size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Exceeds credit limit by ₹{(outstandingAmt - creditLimit).toLocaleString('en-IN')}.
                     </span>
                   )}
                 </div>
@@ -420,6 +523,186 @@ const CustomerDetailPage = () => {
           )}
         </div>
       )}
+
+      {/* ── Tab: Payment History ── */}
+      {activeTab === 'payments' && (
+        <div className="cd-panel">
+          <h3 className="cd-panel__title">Payment History</h3>
+          {paymentsLoading ? (
+            <div className="cd-loading">Loading payments…</div>
+          ) : !payments.length ? (
+            <div className="cd-empty">
+              <div className="cd-empty__icon" style={{ opacity: 0.5 }}><DollarSign size={40} /></div>
+              <div className="cd-empty__text">No payments recorded for this customer yet.</div>
+            </div>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="cd-ledger-table">
+                <thead>
+                  <tr>
+                    <th>Voucher #</th>
+                    <th>Payment Date</th>
+                    <th>Payment Method</th>
+                    <th>Reference Number</th>
+                    <th>Remarks</th>
+                    <th style={{ textAlign: 'right' }}>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {payments.map((p) => (
+                    <tr key={p._id}>
+                      <td style={{ fontWeight: 'var(--font-medium)' }}>{p.paymentNumber}</td>
+                      <td style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--text-xs)' }}>
+                        {p.paymentDate ? new Date(p.paymentDate).toLocaleDateString('en-IN') : '—'}
+                      </td>
+                      <td style={{ textTransform: 'capitalize' }}>
+                        {p.paymentMethod?.replace('_', ' ')}
+                      </td>
+                      <td style={{ color: 'var(--color-text-secondary)' }}>{p.referenceNumber || '—'}</td>
+                      <td style={{ color: 'var(--color-text-secondary)' }}>{p.remarks || '—'}</td>
+                      <td className="amount" style={{ color: 'var(--color-success)', fontWeight: 'var(--font-semibold)' }}>
+                        ₹{p.amount?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr style={{ background: 'var(--color-bg)' }}>
+                    <td colSpan={5} style={{ fontWeight: 'var(--font-semibold)', padding: '10px 12px', borderTop: '2px solid var(--color-border)' }}>
+                      Total Received
+                    </td>
+                    <td className="amount" style={{ borderTop: '2px solid var(--color-border)', fontWeight: 'var(--font-bold)', color: 'var(--color-success)' }}>
+                      ₹{payments.reduce((acc, curr) => acc + (curr.amount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Log Payment Drawer ── */}
+      <FormDrawer
+        open={paymentDrawerOpen}
+        onClose={() => setPaymentDrawerOpen(false)}
+        title={`Log Payment - ${customer.customerName}`}
+        footer={
+          <>
+            <button onClick={() => setPaymentDrawerOpen(false)} className="btn btn--secondary">Cancel</button>
+            <button onClick={handlePaymentSubmit} className="btn btn--primary">Save</button>
+          </>
+        }
+      >
+        {paymentValidationErrors.general && (
+          <div className="field-error" style={{ display: 'block', marginBottom: 12 }}>{paymentValidationErrors.general}</div>
+        )}
+
+        <div
+          style={{
+            background: 'var(--color-bg)',
+            padding: '12px',
+            borderRadius: 'var(--radius-sm)',
+            marginBottom: '16px',
+            borderLeft: '4px solid var(--color-primary)',
+            fontSize: 'var(--text-sm)',
+          }}
+        >
+          Customer Name: <strong>{customer.customerName}</strong><br />
+          Outstanding Balance: <strong style={{ color: 'var(--color-danger)' }}>₹{outstandingAmt?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+        </div>
+
+        <div className="form-row">
+          <div className="field-group">
+            <label className="field-label field-label--required">Payment Amount (₹)</label>
+            <input
+              type="number"
+              className="field-input"
+              value={paymentForm.amount}
+              onChange={(e) => setPaymentForm({ ...paymentForm, amount: e.target.value })}
+              placeholder="e.g. 50000"
+            />
+            {paymentValidationErrors.amount && <span className="field-error">{paymentValidationErrors.amount}</span>}
+          </div>
+
+          <div className="field-group">
+            <label className="field-label">Payment Date</label>
+            <input
+              type="date"
+              className="field-input"
+              value={paymentForm.paymentDate}
+              onChange={(e) => setPaymentForm({ ...paymentForm, paymentDate: e.target.value })}
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="field-group">
+            <label className="field-label">Payment Mode</label>
+            <select
+              className="field-select"
+              value={paymentForm.paymentMethod}
+              onChange={(e) => setPaymentForm({ ...paymentForm, paymentMethod: e.target.value })}
+            >
+              <option value="bank_transfer">Bank Transfer (NEFT/RTGS/UPI)</option>
+              <option value="cheque">Cheque</option>
+              <option value="cash">Cash</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div className="field-group">
+            <label className="field-label">Reference Number</label>
+            <input
+              type="text"
+              className="field-input"
+              value={paymentForm.referenceNumber}
+              onChange={(e) => setPaymentForm({ ...paymentForm, referenceNumber: e.target.value })}
+              placeholder="Transaction ID / Cheque No."
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="field-group">
+            <label className="field-label">Voucher Number (Optional)</label>
+            <input
+              type="text"
+              className="field-input"
+              value={paymentForm.paymentNumber}
+              onChange={(e) => setPaymentForm({ ...paymentForm, paymentNumber: e.target.value })}
+              placeholder="Auto-generated if blank"
+            />
+          </div>
+
+          {userRole === 'super_admin' && (
+            <div className="field-group">
+              <label className="field-label field-label--required">Branch Assignment</label>
+              <select
+                className="field-select"
+                value={paymentForm.branchId}
+                onChange={(e) => setPaymentForm({ ...paymentForm, branchId: e.target.value })}
+              >
+                <option value="">Select Branch...</option>
+                {branches.map((b) => (
+                  <option key={b._id} value={b._id}>{b.branchName}</option>
+                ))}
+              </select>
+              {paymentValidationErrors.branchId && <span className="field-error">{paymentValidationErrors.branchId}</span>}
+            </div>
+          )}
+        </div>
+
+        <div className="field-group">
+          <label className="field-label">Remarks / Description</label>
+          <textarea
+            className="field-textarea"
+            value={paymentForm.remarks}
+            onChange={(e) => setPaymentForm({ ...paymentForm, remarks: e.target.value })}
+            placeholder="Add payment notes..."
+            rows={3}
+          />
+        </div>
+      </FormDrawer>
 
       {/* ── Edit Drawer ── */}
       {form && (
@@ -451,22 +734,13 @@ const CustomerDetailPage = () => {
 
           <div className="form-row">
             <div className="field-group">
-              <label className="field-label">Company Name</label>
-              <input type="text" className="field-input" value={form.companyName}
-                onChange={(e) => setForm({ ...form, companyName: e.target.value })} />
-            </div>
-            <div className="field-group">
-              <label className="field-label">Contact Person</label>
-              <input type="text" className="field-input" value={form.contactPerson}
-                onChange={(e) => setForm({ ...form, contactPerson: e.target.value })} />
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="field-group">
               <label className="field-label field-label--required">Mobile Number</label>
-              <input type="text" className="field-input" value={form.mobile}
-                onChange={(e) => setForm({ ...form, mobile: e.target.value })} />
+              <PhoneInput
+                placeholder="Enter mobile number"
+                value={form.mobile}
+                onChange={(val) => setForm({ ...form, mobile: val || '' })}
+                defaultCountry="IN"
+              />
               {validationErrors.mobile && <span className="field-error">{validationErrors.mobile}</span>}
             </div>
             <div className="field-group">
@@ -476,30 +750,22 @@ const CustomerDetailPage = () => {
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="field-group">
-              <label className="field-label">GSTIN (GST Number)</label>
-              <input type="text" className="field-input" value={form.gstNumber}
-                onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} />
-            </div>
-            <div className="field-group">
-              <label className="field-label">Credit Limit (₹)</label>
-              <input type="number" className="field-input" value={form.creditLimit}
-                onChange={(e) => setForm({ ...form, creditLimit: Number(e.target.value) })} />
-            </div>
+          <div className="field-group">
+            <label className="field-label">GSTIN (GST Number)</label>
+            <input type="text" className="field-input" value={form.gstNumber}
+              onChange={(e) => setForm({ ...form, gstNumber: e.target.value })} />
           </div>
 
           <div className="field-group">
-            <label className="field-label">Payment Terms</label>
-            <input type="text" className="field-input" value={form.paymentTerms}
-              onChange={(e) => setForm({ ...form, paymentTerms: e.target.value })}
-              placeholder="e.g. 30 Days Net" />
+            <label className="field-label">Personal Address</label>
+            <textarea className="field-textarea" value={form.personalAddress} rows={3}
+              onChange={(e) => setForm({ ...form, personalAddress: e.target.value })} />
           </div>
 
           <div className="field-group">
-            <label className="field-label">Billing Address</label>
-            <textarea className="field-textarea" value={form.address} rows={3}
-              onChange={(e) => setForm({ ...form, address: e.target.value })} />
+            <label className="field-label">Site Address</label>
+            <textarea className="field-textarea" value={form.siteAddress} rows={3}
+              onChange={(e) => setForm({ ...form, siteAddress: e.target.value })} />
           </div>
         </FormDrawer>
       )}

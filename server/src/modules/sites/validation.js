@@ -10,6 +10,16 @@ const createSiteSchema = Joi.object({
   endDate:       Joi.date().allow(null),
   siteArea:      Joi.number().min(0).default(0),
   branchId:      Joi.string().trim().allow('', null),
+  wallTemplateId: Joi.string().trim().allow('', null),
+  transportRatePerTrip: Joi.number().min(0).default(0),
+  labourRatePerManDay: Joi.number().min(0).default(0),
+  panelSellingPrice: Joi.number().min(0).default(0),
+  poleSellingPrice: Joi.number().min(0).default(0),
+  beamSellingPrice: Joi.number().min(0).default(0),
+  topBeamSellingPrice: Joi.number().min(0).default(0),
+  cementRate: Joi.number().min(0).default(0),
+  steelRate: Joi.number().min(0).default(0),
+  aggregateRate: Joi.number().min(0).default(0),
 });
 
 const updateSiteSchema = Joi.object({
@@ -21,6 +31,16 @@ const updateSiteSchema = Joi.object({
   endDate:       Joi.date().allow(null),
   siteArea:      Joi.number().min(0),
   status:        Joi.string().valid('planned', 'in_progress', 'completed', 'on_hold'),
+  wallTemplateId: Joi.string().trim().allow('', null),
+  transportRatePerTrip: Joi.number().min(0),
+  labourRatePerManDay: Joi.number().min(0),
+  panelSellingPrice: Joi.number().min(0),
+  poleSellingPrice: Joi.number().min(0),
+  beamSellingPrice: Joi.number().min(0),
+  topBeamSellingPrice: Joi.number().min(0),
+  cementRate: Joi.number().min(0),
+  steelRate: Joi.number().min(0),
+  aggregateRate: Joi.number().min(0),
 });
 
 const statusSchema = Joi.object({

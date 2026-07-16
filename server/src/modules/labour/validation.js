@@ -6,6 +6,8 @@ const createLabourSchema = Joi.object({
   labourType:   Joi.string().valid('mason', 'bar_bender', 'carpenter', 'helper', 'operator', 'supervisor').default('helper'),
   dailyWages:   Joi.number().min(0).required().messages({ 'any.required': 'Daily wage rate is required' }),
   branchId:     Joi.string().trim().allow('', null),
+  projectId:    Joi.string().trim().allow('', null),
+  siteId:       Joi.string().trim().allow('', null),
 });
 
 const updateLabourSchema = Joi.object({
@@ -14,17 +16,21 @@ const updateLabourSchema = Joi.object({
   labourType:   Joi.string().valid('mason', 'bar_bender', 'carpenter', 'helper', 'operator', 'supervisor'),
   dailyWages:   Joi.number().min(0),
   status:       Joi.string().valid('active', 'inactive'),
+  projectId:    Joi.string().trim().allow('', null),
+  siteId:       Joi.string().trim().allow('', null),
 });
 
 const attendanceRecordSchema = Joi.object({
   labourId: Joi.string().trim().required(),
-  status:   Joi.string().valid('present', 'absent', 'half_day').required(),
+  status:   Joi.string().valid('present', 'absent', 'half_day', 'unmarked').required(),
   remarks:  Joi.string().trim().allow('', null),
 });
 
 const batchAttendanceSchema = Joi.object({
-  date:    Joi.date().required().messages({ 'any.required': 'Attendance date is required' }),
-  records: Joi.array().items(attendanceRecordSchema).min(1).required().messages({
+  date:      Joi.date().required().messages({ 'any.required': 'Attendance date is required' }),
+  projectId: Joi.string().trim().allow('', null),
+  siteId:    Joi.string().trim().allow('', null),
+  records:   Joi.array().items(attendanceRecordSchema).min(1).required().messages({
     'array.min': 'At least one attendance record is required',
   }),
 });

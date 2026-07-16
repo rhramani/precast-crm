@@ -66,6 +66,8 @@ const PaymentsPage = () => {
     setSortOrder(order);
   };
 
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api/v1';
+
   // Fetch live outstanding details for selected customer
   const handleCustomerChange = async (customerId) => {
     setForm((prev) => ({ ...prev, customerId }));
@@ -74,15 +76,22 @@ const PaymentsPage = () => {
       return;
     }
     try {
-      const response = await fetch(`/api/v1/customers/${customerId}/outstanding`, {
+      const response = await fetch(`${API_BASE}/customers/${customerId}/outstanding`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(body.message || 'Failed to load customer outstanding details');
+      }
       const resData = await response.json();
       if (resData.success) {
         setOutstandingInfo(resData.data);
+      } else {
+        throw new Error(resData.message || 'Failed to load customer outstanding details');
       }
     } catch (e) {
       setOutstandingInfo(null);
+      alert(e.message || 'Failed to load customer outstanding details');
     }
   };
 

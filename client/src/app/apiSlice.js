@@ -120,6 +120,7 @@ export const apiSlice = createApi({
     'Report',
     'Notification',
     'Settings',
+    'WallTemplate',
   ],
   endpoints: () => ({}),
 });

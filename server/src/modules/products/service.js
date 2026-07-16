@@ -101,10 +101,22 @@ const deleteProduct = async (id, branchFilter) => {
   return { success: true };
 };
 
+const getProduct = async (id, branchFilter) => {
+  const product = await Product.findOne({ _id: id, ...branchFilter });
+  if (!product) {
+    const err = new Error('Product not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  return product;
+};
+
 module.exports = {
   listProducts,
+  getProduct,
   createProduct,
   updateProduct,
   updateProductStatus,
   deleteProduct,
 };
+

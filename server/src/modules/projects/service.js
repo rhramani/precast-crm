@@ -1,5 +1,8 @@
 const Project = require('./model');
 const Site = require('../sites/model');
+const SiteCalculation = require('../sites/calculationModel');
+const WallCategoryTemplate = require('../wallTemplates/model');
+const Product = require('../products/model');
 
 const buildMeta = (page, limit, total) => ({
   page,
@@ -57,8 +60,65 @@ const getProject = async (id) => {
 const getProjectSites = async (projectId, branchFilter) => {
   const sites = await Site.find({ projectId, ...branchFilter })
     .populate('projectId', 'projectName')
+    .populate('wallTemplateId', 'name category')
     .sort({ createdAt: -1 });
   return sites;
+};
+
+const getCombinedRequirements = async (projectId, branchFilter) => {
+  const sites = await Site.find({ projectId, ...branchFilter });
+  const productMap = {};
+
+  for (const site of sites) {
+    const calculation = await SiteCalculation.findOne({ siteId: site._id }).sort({ createdAt: -1 });
+    if (!calculation) continue;
+
+    let template = null;
+    if (site.wallTemplateId) {
+      template = await WallCategoryTemplate.findById(site.wallTemplateId).populate('products.productId');
+    } else {
+      template = await WallCategoryTemplate.findOne({ branchId: site.branchId, isDefault: true }).populate('products.productId');
+    }
+
+    if (!template) continue;
+
+    const { wallPanels = 0, poles = 0, beams = 0, topBeams = 0 } = calculation.calculated || {};
+
+    for (const pLine of template.products) {
+      const prod = pLine.productId;
+      if (!prod) continue;
+
+      const cat = prod.category;
+      let quantity = 0;
+
+      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(cat)) {
+        quantity = wallPanels;
+      } else if (['pole', 'column'].includes(cat)) {
+        quantity = poles;
+      } else if (cat === 'beam') {
+        quantity = beams;
+      } else if (cat === 'top_beam') {
+        quantity = topBeams;
+      }
+
+      if (quantity > 0) {
+        const prodId = prod._id.toString();
+        if (!productMap[prodId]) {
+          productMap[prodId] = {
+            productId: prod._id,
+            productName: prod.productName,
+            productCode: prod.productCode,
+            quantity: 0,
+            rate: prod.sellingPrice || 0,
+            taxPercent: 18,
+          };
+        }
+        productMap[prodId].quantity += quantity;
+      }
+    }
+  }
+
+  return Object.values(productMap);
 };
 
 const deleteProject = async (id) => {
@@ -77,5 +137,6 @@ module.exports = {
   updateProject,
   getProject,
   getProjectSites,
+  getCombinedRequirements,
   deleteProject,
 };
