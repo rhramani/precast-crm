@@ -547,7 +547,7 @@ const WallTemplatePage = () => {
         </div>
 
         {/* Flags */}
-        <div className="form-row" style={{ gridTemplateColumns: '1fr 1fr' }}>
+        <div className="form-row">
           <label className="wtp-checkbox">
             <input
               type="checkbox"

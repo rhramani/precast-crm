@@ -149,7 +149,7 @@
 .login-showcase__description {
   font-size: 16px;
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.9); /* Increased from 0.72 for proper visibility */
   font-weight: 400;
 }
 
@@ -212,13 +212,13 @@
 
 .login-showcase__feature-desc {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+  color: rgba(255, 255, 255, 0.85); /* Increased from 0.6 for proper visibility */
   line-height: 1.4;
 }
 
 .login-showcase__footer {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.45);
+  color: rgba(255, 255, 255, 0.75); /* Increased from 0.45 for proper visibility */
   animation: fadeInRight 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.4s both;
 }
 
@@ -349,7 +349,7 @@
 
 .login-auth-subtitle {
   font-size: 14px;
-  color: var(--color-text-secondary);
+  color: #334155; /* Darkened from var(--color-text-secondary) for proper visibility */
   line-height: 1.5;
 }
 

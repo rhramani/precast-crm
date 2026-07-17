@@ -10,7 +10,7 @@ const RolesPage = () => {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
         {/* Super Admin Info */}
         <div className="card" style={{ background: 'var(--color-surface)', padding: '32px', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', borderTop: '4px solid var(--color-accent)' }}>
           <h2 style={{ fontSize: 'var(--text-md)', margin: '0 0 8px 0', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '8px' }}>

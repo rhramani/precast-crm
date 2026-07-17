@@ -386,7 +386,7 @@ const PurchaseOrdersPage = () => {
           <h4>Raw Material Items</h4>
           {validationErrors.itemError && <span className="field-error" style={{ display: 'block', marginBottom: '8px' }}>{validationErrors.itemError}</span>}
 
-          <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
+          <div className="form-row form-row--dynamic-add" style={{ gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
             <div className="field-group">
               <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Raw Material</label>
               <select

@@ -237,7 +237,7 @@
 /* ── Cards Grid ───────────────────────────────────────── */
 .wtp-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--space-4);
 }
 
@@ -386,7 +386,7 @@
 .wtp-card__product-section {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
-  overflow: hidden;
+  overflow-x: auto;
 }
 
 .wtp-card__product-header {

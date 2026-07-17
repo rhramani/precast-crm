@@ -328,7 +328,7 @@ const ProductsPage = () => {
 
         <div className="field-group">
           <label className="field-label">Dimensions (WxHxLxT)</label>
-          <div className="form-row" style={{ gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+          <div className="form-row form-row--4" style={{ gap: '8px' }}>
             <div>
               <label style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Width</label>
               <input

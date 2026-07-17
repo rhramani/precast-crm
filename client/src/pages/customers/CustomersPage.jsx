@@ -312,7 +312,7 @@ const CustomersPage = () => {
           />
         </div>
 
-        <div className="form-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px', marginBottom: '16px' }}>
+        <div className="form-row form-row--3" style={{ gap: '12px', marginBottom: '16px' }}>
           <div className="field-group" style={{ marginBottom: 0 }}>
             <label className="field-label">City</label>
             <input

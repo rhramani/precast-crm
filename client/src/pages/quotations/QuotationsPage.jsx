@@ -409,7 +409,7 @@ const QuotationsPage = () => {
           <h4>Line Items</h4>
           {validationErrors.itemError && <span className="field-error" style={{ display: 'block', marginBottom: '8px' }}>{validationErrors.itemError}</span>}
 
-          <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
+          <div className="form-row form-row--dynamic-add" style={{ gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
             <div className="field-group">
               <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Product</label>
               <select

@@ -115,9 +115,10 @@
 
 @media (max-width: 1200px) {
   .dashboard-v2__kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-v2__op-kpis { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 480px) {
   .dashboard-v2__kpi-grid { grid-template-columns: 1fr; }
 }
 
@@ -235,7 +236,7 @@
   gap: var(--space-6);
 }
 
-@media (max-width: 992px) {
+@media (max-width: 1200px) {
   .dashboard-v2__row-split { grid-template-columns: 1fr; }
 }
 
@@ -798,6 +799,20 @@
    RESPONSIVE DESIGN IMPROVEMENTS
    ============================================================ */
 
+.dashboard-v2__op-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.dashboard-v2__card--solid {
+  background: var(--color-surface) !important;
+  border: 1px solid var(--color-border) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 /* Mobile view adjustments for banner and charts */
 @media (max-width: 768px) {
   .dashboard-v2__welcome-banner {
@@ -813,6 +828,10 @@
     width: 100%;
     justify-content: center;
   }
+  .dashboard-v2__card {
+    min-height: auto !important;
+    padding: var(--space-4) !important;
+  }
 }
 
 @media (max-width: 640px) {
@@ -825,10 +844,31 @@
   }
 }
 
+@media (max-width: 576px) {
+  .dashboard-v2__card-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: var(--space-2) !important;
+  }
+  
+  .dashboard-v2__actions {
+    align-self: stretch !important;
+    width: 100% !important;
+  }
+  
+  .dashboard-v2__select {
+    width: 100% !important;
+  }
+}
+
 /* Flex wrap layout adjustments for card lists on narrow mobile devices */
 @media (max-width: 480px) {
   .dashboard-v2__welcome-title {
     font-size: 1.3rem !important;
+  }
+  .dashboard-v2__op-kpis {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
   .upcoming-appointment-item {
     flex-direction: column;
@@ -853,4 +893,5 @@
     padding: 6px 14px;
   }
 }
+
 

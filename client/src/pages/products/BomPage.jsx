@@ -272,7 +272,7 @@ const BomPage = () => {
           )}
 
           {/* Staging Fields */}
-          <div className="form-row" style={{ gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '12px', alignItems: 'flex-end', marginBottom: '24px' }}>
+          <div className="form-row form-row--dynamic-add" style={{ gap: '12px', alignItems: 'flex-end', marginBottom: '24px' }}>
             <div className="field-group">
               <label className="field-label">Select Raw Material</label>
               <select

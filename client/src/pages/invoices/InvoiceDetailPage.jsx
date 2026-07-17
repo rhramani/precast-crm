@@ -84,7 +84,7 @@ const InvoiceDetailPage = () => {
         </div>
 
         {/* Bill To / Info Block */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '24px', paddingBottom: '24px', borderBottom: '1px solid var(--color-border)' }}>
+        <div className="detail-grid" style={{ marginTop: '24px', paddingBottom: '24px', borderBottom: '1px solid var(--color-border)' }}>
           <div>
             <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Billing Address</span>
             <strong>{invoice.customerId?.customerName}</strong>

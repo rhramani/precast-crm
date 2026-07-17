@@ -453,7 +453,7 @@ const Dashboard = () => {
         {/* Main layout split */}
         <div className="dashboard-v2__row-split" style={{ marginTop: 24 }}>
           {/* Left: Branch performance table */}
-          <div className="dashboard-v2__card" style={{ flex: 2, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: 24 }}>
+          <div className="dashboard-v2__card dashboard-v2__card--solid" style={{ flex: 2, padding: 24 }}>
             <div className="dashboard-v2__card-header" style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 className="dashboard-v2__card-title" style={{ margin: 0 }}>Branch Performance Breakdown</h2>
               <span style={{
@@ -520,7 +520,7 @@ const Dashboard = () => {
           </div>
 
           {/* Right: Low Stock alerts */}
-          <div className="dashboard-v2__card dashboard-v2__card--alerts" style={{ flex: 1, background: 'var(--color-surface)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', padding: 24 }}>
+          <div className="dashboard-v2__card dashboard-v2__card--alerts dashboard-v2__card--solid" style={{ flex: 1, padding: 24 }}>
             <div className="dashboard-v2__card-header" style={{ marginBottom: 20 }}>
               <h2 className="dashboard-v2__card-title">Pending Stock Alerts</h2>
               <span className="badge-critical-count" style={{
@@ -651,7 +651,7 @@ const Dashboard = () => {
         ];
 
         return (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px', marginTop: '4px' }}>
+          <div className="dashboard-v2__op-kpis">
             {opKPIs.map((kpi, idx) => (
               <div
                 key={idx}

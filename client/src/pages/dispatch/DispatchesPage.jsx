@@ -484,7 +484,7 @@ const DispatchesPage = () => {
           <h4>Dispatched Finished Goods</h4>
           {validationErrors.itemError && <span className="field-error" style={{ display: 'block', marginBottom: '8px' }}>{validationErrors.itemError}</span>}
 
-          <div className="form-row" style={{ gridTemplateColumns: '3fr 1fr auto', gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
+          <div className="form-row form-row--dynamic-3" style={{ gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
             <div className="field-group">
               <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Select Product</label>
               <select
