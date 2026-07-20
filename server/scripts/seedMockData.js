@@ -1,7 +1,9 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Branch = require('../src/modules/branches/model');
+const RawMaterialCategory = require('../src/modules/rawMaterialCategories/model');
 const RawMaterial = require('../src/modules/rawMaterials/model');
+const ProductCategory = require('../src/modules/productCategories/model');
 const Product = require('../src/modules/products/model');
 const Supplier = require('../src/modules/purchases/supplierModel');
 
@@ -30,6 +32,53 @@ const seed = async () => {
   }
 
   const branchId = branch._id;
+
+  // 1.2. Mock Raw Material Categories
+  const rmCategories = [
+    { name: 'Cement', key: 'cement' },
+    { name: 'Sand', key: 'sand' },
+    { name: 'Aggregate', key: 'aggregate' },
+    { name: 'Steel', key: 'steel' },
+    { name: 'Chemical', key: 'chemical' },
+    { name: 'Fly Ash', key: 'fly_ash' },
+    { name: 'Stone Dust', key: 'stone_dust' },
+    { name: 'Water', key: 'water' },
+    { name: 'Other', key: 'other' }
+  ];
+  const rmCategoryMap = {};
+  for (const cat of rmCategories) {
+    const dbCat = await RawMaterialCategory.findOneAndUpdate(
+      { branchId, name: cat.name },
+      { name: cat.name, description: `Default ${cat.name} category`, branchId },
+      { upsert: true, new: true }
+    );
+    rmCategoryMap[cat.key] = dbCat._id;
+  }
+  console.log('🎉 Seeded raw material categories.');
+
+  // 1.3. Mock Product Categories
+  const prodCategories = [
+    { name: 'Cement Wall', key: 'cement_wall' },
+    { name: 'Compound Wall', key: 'compound_wall' },
+    { name: 'Boundary Wall', key: 'boundary_wall' },
+    { name: 'Pole', key: 'pole' },
+    { name: 'Beam', key: 'beam' },
+    { name: 'Top Beam', key: 'top_beam' },
+    { name: 'Slab', key: 'slab' },
+    { name: 'Paver Block', key: 'paver_block' },
+    { name: 'Column', key: 'column' },
+    { name: 'Custom', key: 'custom' }
+  ];
+  const prodCategoryMap = {};
+  for (const cat of prodCategories) {
+    const dbCat = await ProductCategory.findOneAndUpdate(
+      { branchId, name: cat.name },
+      { name: cat.name, description: `Default ${cat.name} category`, branchId },
+      { upsert: true, new: true }
+    );
+    prodCategoryMap[cat.key] = dbCat._id;
+  }
+  console.log('🎉 Seeded product categories.');
 
   // 1.5. Mock Suppliers
   const suppliersData = [
@@ -65,16 +114,16 @@ const seed = async () => {
 
   // 2. 10 Mock Raw Materials
   const rawMaterialsData = [
-    { materialCode: 'RM-OPC53', materialName: 'OPC 53 Cement', category: 'cement', unit: 'kg', currentQuantity: 15000, minimumQuantity: 3000, purchaseRate: 8.5, supplierId: supplierIdMap.cement },
-    { materialCode: 'RM-SAND-RIV', materialName: 'River Sand', category: 'sand', unit: 'brass', currentQuantity: 25, minimumQuantity: 5, purchaseRate: 6200, supplierId: supplierIdMap.sand },
-    { materialCode: 'RM-AGG10', materialName: '10mm Blue Metal Aggregate', category: 'aggregate', unit: 'brass', currentQuantity: 18, minimumQuantity: 4, purchaseRate: 4800, supplierId: supplierIdMap.aggregates },
-    { materialCode: 'RM-AGG20', materialName: '20mm Blue Metal Aggregate', category: 'aggregate', unit: 'brass', currentQuantity: 20, minimumQuantity: 4, purchaseRate: 5000, supplierId: supplierIdMap.aggregates },
-    { materialCode: 'RM-STL08', materialName: '8mm TMT Steel Rebar', category: 'steel', unit: 'kg', currentQuantity: 2500, minimumQuantity: 500, purchaseRate: 64, supplierId: supplierIdMap.steel },
-    { materialCode: 'RM-STL10', materialName: '10mm TMT Steel Rebar', category: 'steel', unit: 'kg', currentQuantity: 3000, minimumQuantity: 500, purchaseRate: 62, supplierId: supplierIdMap.steel },
-    { materialCode: 'RM-CHEM-PL', materialName: 'Superplasticizer Chemical Admixture', category: 'chemical', unit: 'kg', currentQuantity: 450, minimumQuantity: 100, purchaseRate: 140, supplierId: supplierIdMap.chemicals },
-    { materialCode: 'RM-FLYASH', materialName: 'Premium Class F Fly Ash', category: 'fly_ash', unit: 'kg', currentQuantity: 8000, minimumQuantity: 2000, purchaseRate: 3.2, supplierId: supplierIdMap.flyash },
-    { materialCode: 'RM-STDUST', materialName: 'Fine Stone Dust', category: 'stone_dust', unit: 'brass', currentQuantity: 15, minimumQuantity: 3, purchaseRate: 3100, supplierId: supplierIdMap.aggregates },
-    { materialCode: 'RM-WATER', materialName: 'Processed Borewell Water', category: 'water', unit: 'litres', currentQuantity: 25000, minimumQuantity: 5000, purchaseRate: 0.15, supplierId: supplierIdMap.water }
+    { materialCode: 'RM-OPC53', materialName: 'OPC 53 Cement', category: rmCategoryMap.cement, unit: 'kg', currentQuantity: 15000, minimumQuantity: 3000, purchaseRate: 8.5, supplierId: supplierIdMap.cement },
+    { materialCode: 'RM-SAND-RIV', materialName: 'River Sand', category: rmCategoryMap.sand, unit: 'brass', currentQuantity: 25, minimumQuantity: 5, purchaseRate: 6200, supplierId: supplierIdMap.sand },
+    { materialCode: 'RM-AGG10', materialName: '10mm Blue Metal Aggregate', category: rmCategoryMap.aggregate, unit: 'brass', currentQuantity: 18, minimumQuantity: 4, purchaseRate: 4800, supplierId: supplierIdMap.aggregates },
+    { materialCode: 'RM-AGG20', materialName: '20mm Blue Metal Aggregate', category: rmCategoryMap.aggregate, unit: 'brass', currentQuantity: 20, minimumQuantity: 4, purchaseRate: 5000, supplierId: supplierIdMap.aggregates },
+    { materialCode: 'RM-STL08', materialName: '8mm TMT Steel Rebar', category: rmCategoryMap.steel, unit: 'kg', currentQuantity: 2500, minimumQuantity: 500, purchaseRate: 64, supplierId: supplierIdMap.steel },
+    { materialCode: 'RM-STL10', materialName: '10mm TMT Steel Rebar', category: rmCategoryMap.steel, unit: 'kg', currentQuantity: 3000, minimumQuantity: 500, purchaseRate: 62, supplierId: supplierIdMap.steel },
+    { materialCode: 'RM-CHEM-PL', materialName: 'Superplasticizer Chemical Admixture', category: rmCategoryMap.chemical, unit: 'kg', currentQuantity: 450, minimumQuantity: 100, purchaseRate: 140, supplierId: supplierIdMap.chemicals },
+    { materialCode: 'RM-FLYASH', materialName: 'Premium Class F Fly Ash', category: rmCategoryMap.fly_ash, unit: 'kg', currentQuantity: 8000, minimumQuantity: 2000, purchaseRate: 3.2, supplierId: supplierIdMap.flyash },
+    { materialCode: 'RM-STDUST', materialName: 'Fine Stone Dust', category: rmCategoryMap.stone_dust, unit: 'brass', currentQuantity: 15, minimumQuantity: 3, purchaseRate: 3100, supplierId: supplierIdMap.aggregates },
+    { materialCode: 'RM-WATER', materialName: 'Processed Borewell Water', category: rmCategoryMap.water, unit: 'litres', currentQuantity: 25000, minimumQuantity: 5000, purchaseRate: 0.15, supplierId: supplierIdMap.water }
   ];
 
   console.log('🌱 Inserting Raw Materials...');
@@ -95,16 +144,16 @@ const seed = async () => {
 
   // 3. 10 Mock Products
   const productsData = [
-    { productCode: 'PR-CW-01', productName: 'Cement Wall Panel 6ft', category: 'cement_wall', dimensions: { width: 0.3, height: 1.8, length: 0.1, thickness: 0.05 }, weight: 85, unit: 'pcs', description: 'Standard high-strength boundary wall panels.' },
-    { productCode: 'PR-CW-COL', productName: 'Precast Compound Wall Column 8ft', category: 'compound_wall', dimensions: { width: 0.15, height: 2.4, length: 0.15, thickness: 0.15 }, weight: 140, unit: 'pcs', description: 'Heavy-duty columns for secure compound walling.' },
-    { productCode: 'PR-BW-SLAB', productName: 'RCC Boundary Wall Slab 5ft', category: 'boundary_wall', dimensions: { width: 0.3, height: 1.5, length: 0.08, thickness: 0.04 }, weight: 65, unit: 'pcs', description: 'Standard boundary wall infill slab.' },
-    { productCode: 'PR-PO-9M', productName: 'Precast Electric Pole 9m', category: 'pole', dimensions: { width: 0.2, height: 9.0, length: 0.2, thickness: 0.2 }, weight: 420, unit: 'pcs', description: 'Electricity transmission post.' },
-    { productCode: 'PR-BM-H10', productName: 'Precast H-Beam Column 3m', category: 'beam', dimensions: { width: 0.25, height: 3.0, length: 0.25, thickness: 0.25 }, weight: 280, unit: 'pcs', description: 'Structural load-bearing H-section beam.' },
-    { productCode: 'PR-TB-06', productName: 'Standard Top Beam 2.4m', category: 'top_beam', dimensions: { width: 0.15, height: 2.4, length: 0.15, thickness: 0.15 }, weight: 95, unit: 'pcs', description: 'Top coping beam.' },
-    { productCode: 'PR-SL-2X1', productName: 'Heavy Duty Precast Slab 2x1m', category: 'slab', dimensions: { width: 1.0, height: 2.0, length: 0.1, thickness: 0.1 }, weight: 480, unit: 'pcs', description: 'Ground floor cover slab.' },
-    { productCode: 'PR-PV-GRY', productName: 'Uni Paver Block Grey 80mm', category: 'paver_block', dimensions: { width: 0.1, height: 0.08, length: 0.2, thickness: 0.08 }, weight: 3.6, unit: 'pcs', description: 'Grey interlocking paver block for heavy vehicle traffic.' },
-    { productCode: 'PR-COL-4M', productName: 'Precast Square Column 4m', category: 'column', dimensions: { width: 0.3, height: 4.0, length: 0.3, thickness: 0.3 }, weight: 860, unit: 'pcs', description: 'Heavy industrial precast column.' },
-    { productCode: 'PR-CUST-TRN', productName: 'Cable Trench U-Shape 1m', category: 'custom', dimensions: { width: 0.6, height: 1.0, length: 0.5, thickness: 0.1 }, weight: 220, unit: 'pcs', description: 'Custom cable trench utility block.' }
+    { productCode: 'PR-CW-01', productName: 'Cement Wall Panel 6ft', category: prodCategoryMap.cement_wall, dimensions: { width: '0.3', height: '1.8', length: '0.1', thickness: '0.05' }, weight: 85, unit: 'pcs', description: 'Standard high-strength boundary wall panels.', makingCharge: 15, sellingPrice: 702 },
+    { productCode: 'PR-CW-COL', productName: 'Precast Compound Wall Column 8ft', category: prodCategoryMap.compound_wall, dimensions: { width: '0.15', height: '2.4', length: '0.15', thickness: '0.15' }, weight: 140, unit: 'pcs', description: 'Heavy-duty columns for secure compound walling.', makingCharge: 25, sellingPrice: 950 },
+    { productCode: 'PR-BW-SLAB', productName: 'RCC Boundary Wall Slab 5ft', category: prodCategoryMap.boundary_wall, dimensions: { width: '0.3', height: '1.5', length: '0.08', thickness: '0.04' }, weight: 65, unit: 'pcs', description: 'Standard boundary wall infill slab.', makingCharge: 12, sellingPrice: 288 },
+    { productCode: 'PR-PO-9M', productName: 'Precast Electric Pole 9m', category: prodCategoryMap.pole, dimensions: { width: '0.2', height: '9.0', length: '0.2', thickness: '0.2' }, weight: 420, unit: 'pcs', description: 'Electricity transmission post.', makingCharge: 80, sellingPrice: 4200 },
+    { productCode: 'PR-BM-H10', productName: 'Precast H-Beam Column 3m', category: prodCategoryMap.beam, dimensions: { width: '0.25', height: '3.0', length: '0.25', thickness: '0.25' }, weight: 280, unit: 'pcs', description: 'Structural load-bearing H-section beam.', makingCharge: 50, sellingPrice: 2200 },
+    { productCode: 'PR-TB-06', productName: 'Standard Top Beam 2.4m', category: prodCategoryMap.top_beam, dimensions: { width: '0.15', height: '2.4', length: '0.15', thickness: '0.15' }, weight: 95, unit: 'pcs', description: 'Top coping beam.', makingCharge: 20, sellingPrice: 650 },
+    { productCode: 'PR-SL-2X1', productName: 'Heavy Duty Precast Slab 2x1m', category: prodCategoryMap.slab, dimensions: { width: '1.0', height: '2.0', length: '0.1', thickness: '0.1' }, weight: 480, unit: 'pcs', description: 'Ground floor cover slab.', makingCharge: 90, sellingPrice: 2365 },
+    { productCode: 'PR-PV-GRY', productName: 'Uni Paver Block Grey 80mm', category: prodCategoryMap.paver_block, dimensions: { width: '0.1', height: '0.08', length: '0.2', thickness: '0.08' }, weight: 3.6, unit: 'pcs', description: 'Grey interlocking paver block for heavy vehicle traffic.', makingCharge: 1.5, sellingPrice: 16 },
+    { productCode: 'PR-COL-4M', productName: 'Precast Square Column 4m', category: prodCategoryMap.column, dimensions: { width: '0.3', height: '4.0', length: '0.3', thickness: '0.3' }, weight: 860, unit: 'pcs', description: 'Heavy industrial precast column.', makingCharge: 150, sellingPrice: 9800 },
+    { productCode: 'PR-CUST-TRN', productName: 'Cable Trench U-Shape 1m', category: prodCategoryMap.custom, dimensions: { width: '0.6', height: '1.0', length: '0.5', thickness: '0.1' }, weight: 220, unit: 'pcs', description: 'Custom cable trench utility block.', makingCharge: 60, sellingPrice: 2800 }
   ];
 
   console.log('🌱 Inserting Products...');

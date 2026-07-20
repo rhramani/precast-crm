@@ -8,6 +8,7 @@ import {
   useUpdateProductStatusMutation,
   useDeleteProductMutation,
 } from '../../store/api/productApi';
+import { useGetProductCategoriesQuery } from '../../store/api/productCategoryApi';
 import { useGetBranchesQuery } from '../../store/api/branchApi';
 import { selectCurrentRole, selectCurrentBranchId } from '../../store/slices/authSlice';
 import DataTable from '../../components/ui/DataTable';
@@ -54,6 +55,9 @@ const ProductsPage = () => {
   const { data: branchData } = useGetBranchesQuery({ limit: 100 });
   const branches = branchData?.data?.branches || [];
 
+  const { data: categoriesData } = useGetProductCategoriesQuery({ limit: 100 });
+  const categories = categoriesData?.data?.categories || [];
+
   // Mutations
   const [createProduct] = useCreateProductMutation();
   const [updateProduct] = useUpdateProductMutation();
@@ -67,12 +71,13 @@ const ProductsPage = () => {
   const [form, setForm] = useState({
     productCode: '',
     productName: '',
-    category: 'cement_wall',
-    dimensions: { width: 0, height: 0, length: 0, thickness: 0 },
+    category: '',
+    dimensions: { width: '', height: '', length: '', thickness: '' },
     weight: 0,
     unit: 'pcs',
     description: '',
     branchId: '',
+    makingCharge: 0,
     sellingPrice: 0,
   });
 
@@ -93,12 +98,13 @@ const ProductsPage = () => {
     setForm({
       productCode: '',
       productName: '',
-      category: 'cement_wall',
-      dimensions: { width: 0, height: 0, length: 0, thickness: 0 },
+      category: categories[0]?._id || '',
+      dimensions: { width: '', height: '', length: '', thickness: '' },
       weight: 0,
       unit: 'pcs',
       description: '',
       branchId: userRole === 'super_admin' ? '' : userBranchId || '',
+      makingCharge: 0,
       sellingPrice: 0,
     });
     setValidationErrors({});
@@ -110,17 +116,18 @@ const ProductsPage = () => {
     setForm({
       productCode: product.productCode || '',
       productName: product.productName || '',
-      category: product.category || 'cement_wall',
+      category: product.category?._id || product.category || '',
       dimensions: {
-        width:     product.dimensions?.width || 0,
-        height:    product.dimensions?.height || 0,
-        length:    product.dimensions?.length || 0,
-        thickness: product.dimensions?.thickness || 0,
+        width:     product.dimensions?.width || '',
+        height:    product.dimensions?.height || '',
+        length:    product.dimensions?.length || '',
+        thickness: product.dimensions?.thickness || '',
       },
       weight:      product.weight || 0,
       unit:        product.unit || 'pcs',
       description: product.description || '',
       branchId:    product.branchId || '',
+      makingCharge: product.makingCharge || 0,
       sellingPrice: product.sellingPrice || 0,
     });
     setValidationErrors({});
@@ -140,7 +147,7 @@ const ProductsPage = () => {
     const { name, value } = e.target;
     setForm((prev) => ({
       ...prev,
-      dimensions: { ...prev.dimensions, [name]: Number(value) },
+      dimensions: { ...prev.dimensions, [name]: value },
     }));
   };
 
@@ -152,6 +159,7 @@ const ProductsPage = () => {
 
     if (!form.productName.trim()) errors.productName = 'Product name is required';
     if (!form.unit.trim())        errors.unit = 'Unit is required';
+    if (!form.category)           errors.category = 'Category is required';
     if (userRole === 'super_admin' && !form.branchId) errors.branchId = 'Branch assignment is required';
 
     if (Object.keys(errors).length > 0) {
@@ -189,18 +197,35 @@ const ProductsPage = () => {
   const columns = [
     { key: 'productCode', label: 'Code', sortable: true },
     { key: 'productName', label: 'Product Name', sortable: true },
-    { key: 'category', label: 'Category', render: (val) => CATEGORY_MAP[val] || val },
+    {
+      key: 'category',
+      label: 'Category',
+      render: (val) => {
+        if (!val) return '—';
+        if (typeof val === 'object') return val.name || '—';
+        return CATEGORY_MAP[val] || val;
+      }
+    },
     {
       key: 'dimensions',
       label: 'Dimensions (WxHxLxT)',
       render: (val) => {
         if (!val) return '—';
-        return `${val.width || 0}x${val.height || 0}x${val.length || 0}x${val.thickness || 0}`;
+        return `${val.width || '—'} × ${val.height || '—'} × ${val.length || '—'} × ${val.thickness || '—'}`;
       },
     },
     { key: 'weight', label: 'Weight (kg)', render: (val) => `${val} kg` },
     { key: 'unit', label: 'Unit' },
-    { key: 'sellingPrice', label: 'Selling Price', render: (val) => `₹${val?.toLocaleString('en-IN') || 0}` },
+    {
+      key: 'sellingPrice',
+      label: 'Selling Price per SQFT (₹)',
+      render: (val) => `₹${val?.toLocaleString('en-IN') || 0}`
+    },
+    {
+      key: 'makingCharge',
+      label: 'Making Charge (₹)',
+      render: (val) => `₹${val?.toLocaleString('en-IN') || 0}`
+    },
     {
       key: 'status',
       label: 'Status',
@@ -259,8 +284,8 @@ const ProductsPage = () => {
               }}
             >
               <option value="">All Categories</option>
-              {Object.entries(CATEGORY_MAP).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>{cat.name}</option>
               ))}
             </select>
           </div>
@@ -285,8 +310,6 @@ const ProductsPage = () => {
       >
         {validationErrors.general && <div className="field-error">{validationErrors.general}</div>}
 
-
-
         <div className="field-group">
           <label className="field-label field-label--required">Product Name</label>
           <input
@@ -308,10 +331,12 @@ const ProductsPage = () => {
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value })}
             >
-              {Object.entries(CATEGORY_MAP).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              <option value="">Select Category...</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>{cat.name}</option>
               ))}
             </select>
+            {validationErrors.category && <span className="field-error">{validationErrors.category}</span>}
           </div>
           <div className="field-group">
             <label className="field-label field-label--required">Unit of Measure</label>
@@ -333,40 +358,44 @@ const ProductsPage = () => {
               <label style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Width</label>
               <input
                 name="width"
-                type="number"
+                type="text"
                 className="field-input"
                 value={form.dimensions.width}
                 onChange={handleDimensionChange}
+                placeholder="e.g. 6 ft"
               />
             </div>
             <div>
               <label style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Height</label>
               <input
                 name="height"
-                type="number"
+                type="text"
                 className="field-input"
                 value={form.dimensions.height}
                 onChange={handleDimensionChange}
+                placeholder="e.g. 150 ft"
               />
             </div>
             <div>
               <label style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Length</label>
               <input
                 name="length"
-                type="number"
+                type="text"
                 className="field-input"
                 value={form.dimensions.length}
                 onChange={handleDimensionChange}
+                placeholder="e.g. 2.4 ft"
               />
             </div>
             <div>
               <label style={{ fontSize: '10px', color: 'var(--color-text-secondary)' }}>Thickness</label>
               <input
                 name="thickness"
-                type="number"
+                type="text"
                 className="field-input"
                 value={form.dimensions.thickness}
                 onChange={handleDimensionChange}
+                placeholder="e.g. 50 mm"
               />
             </div>
           </div>
@@ -383,34 +412,48 @@ const ProductsPage = () => {
             />
           </div>
           <div className="field-group">
-            <label className="field-label">Selling Price (₹)</label>
+            <label className="field-label">Making Charge (₹)</label>
+            <input
+              type="number"
+              className="field-input"
+              value={form.makingCharge}
+              onChange={(e) => setForm({ ...form, makingCharge: Number(e.target.value) })}
+              placeholder="e.g. 15"
+              min="0"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="field-group" style={{ flex: userRole === 'super_admin' ? '1' : '0 0 calc(50% - 8px)' }}>
+            <label className="field-label">Selling Price per SQFT (₹)</label>
             <input
               type="number"
               className="field-input"
               value={form.sellingPrice}
               onChange={(e) => setForm({ ...form, sellingPrice: Number(e.target.value) })}
-              placeholder="e.g. 700"
+              placeholder="e.g. 65"
+              min="0"
             />
           </div>
+          {userRole === 'super_admin' && (
+            <div className="field-group">
+              <label className="field-label field-label--required">Branch Assignment</label>
+              <select
+                className="field-select"
+                value={form.branchId}
+                onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+                disabled={!!selectedProduct}
+              >
+                <option value="">Select Branch...</option>
+                {branches.map((b) => (
+                  <option key={b._id} value={b._id}>{b.branchName}</option>
+                ))}
+              </select>
+              {validationErrors.branchId && <span className="field-error">{validationErrors.branchId}</span>}
+            </div>
+          )}
         </div>
-
-        {userRole === 'super_admin' && (
-          <div className="field-group" style={{ marginBottom: '16px' }}>
-            <label className="field-label field-label--required">Branch Assignment</label>
-            <select
-              className="field-select"
-              value={form.branchId}
-              onChange={(e) => setForm({ ...form, branchId: e.target.value })}
-              disabled={!!selectedProduct}
-            >
-              <option value="">Select Branch...</option>
-              {branches.map((b) => (
-                <option key={b._id} value={b._id}>{b.branchName}</option>
-              ))}
-            </select>
-            {validationErrors.branchId && <span className="field-error">{validationErrors.branchId}</span>}
-          </div>
-        )}
 
         <div className="field-group">
           <label className="field-label">Description</label>

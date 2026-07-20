@@ -11,8 +11,25 @@ const ActionsDropdown = ({ actions }) => {
   const toggleDropdown = () => {
     if (!isOpen && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect();
+      
+      // Calculate estimated height of the dropdown menu
+      let estimatedHeight = 8; // top & bottom padding
+      activeActions.forEach((act) => {
+        if (act.divider) estimatedHeight += 8;
+        else estimatedHeight += 38;
+      });
+      
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      
+      let top = rect.bottom + window.scrollY + 6;
+      // If it doesn't fit below and fits better above, open upwards
+      if (spaceBelow < estimatedHeight + 10 && spaceAbove > estimatedHeight + 10) {
+        top = rect.top + window.scrollY - estimatedHeight - 6;
+      }
+
       setCoords({
-        top: rect.bottom + window.scrollY + 6,
+        top,
         left: rect.right + window.scrollX - 150, // 150px width alignment to the right of the button
       });
     }

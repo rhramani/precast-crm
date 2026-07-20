@@ -7,6 +7,13 @@ export const customerApi = apiSlice.injectEndpoints({
       providesTags: ['Customer'],
     }),
 
+    getDistance: builder.query({
+      query: ({ origin, destination }) => ({
+        url: '/customers/distance',
+        params: { origin, destination },
+      }),
+    }),
+
     getCustomer: builder.query({
       query: (id) => `/customers/${id}`,
       providesTags: (result, error, id) => [{ type: 'Customer', id }, 'Customer'],
@@ -47,4 +54,5 @@ export const {
   useGetCustomerLedgerQuery,
   useGetCustomerOutstandingQuery,
   useDeleteCustomerMutation,
+  useGetDistanceQuery,
 } = customerApi;

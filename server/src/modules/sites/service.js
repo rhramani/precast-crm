@@ -58,22 +58,27 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
   let template = null;
   if (site.wallTemplateId) {
     template = await WallCategoryTemplate.findById(site.wallTemplateId)
-      .populate('products.productId')
-      .populate('installationMaterials.materialId');
+      .populate({ path: 'products.productId', populate: { path: 'category' } })
+      .populate({
+        path: 'installationMaterials.materialId',
+        populate: { path: 'category', select: 'name' }
+      });
   } else {
     template = await WallCategoryTemplate.findOne({ branchId: site.branchId, isDefault: true })
-      .populate('products.productId')
-      .populate('installationMaterials.materialId');
+      .populate({ path: 'products.productId', populate: { path: 'category' } })
+      .populate({
+        path: 'installationMaterials.materialId',
+        populate: { path: 'category', select: 'name' }
+      });
   }
 
-  const baySpacing = template ? template.baySpacingMeters || 3 : 3;
-  const bays = Math.ceil(length / baySpacing) || 1;
+  const wallAreaSqft = (length / 0.3048) * (template ? template.heightFeet || 6 : 6);
 
   // Identify products in the template by their category mappings
-  let panelQtyPerBay = 8;
-  let poleQtyPerBay = 1;
-  let beamQtyPerBay = 1;
-  let topBeamQtyPerBay = 1;
+  let panelQtyPerSqft = 0.1355; // default fallback if no template
+  let poleQtyPerSqft = 0.0169;
+  let beamQtyPerSqft = 0.0169;
+  let topBeamQtyPerSqft = 0.0169;
 
   let panelProduct = null;
   let poleProduct = null;
@@ -85,27 +90,30 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
       const prod = pLine.productId;
       if (!prod) continue;
       
-      const cat = prod.category;
-      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(cat)) {
-        panelQtyPerBay = pLine.qtyPerBay;
+      const catKey = prod.category?.name
+        ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
+        : (typeof prod.category === 'string' ? prod.category : '');
+
+      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey)) {
+        panelQtyPerSqft = pLine.qtyPerSqft;
         panelProduct = prod;
-      } else if (['pole', 'column'].includes(cat)) {
-        poleQtyPerBay = pLine.qtyPerBay;
+      } else if (['pole', 'column'].includes(catKey)) {
+        poleQtyPerSqft = pLine.qtyPerSqft;
         poleProduct = prod;
-      } else if (cat === 'beam') {
-        beamQtyPerBay = pLine.qtyPerBay;
+      } else if (catKey === 'beam') {
+        beamQtyPerSqft = pLine.qtyPerSqft;
         beamProduct = prod;
-      } else if (cat === 'top_beam') {
-        topBeamQtyPerBay = pLine.qtyPerBay;
+      } else if (catKey === 'top_beam') {
+        topBeamQtyPerSqft = pLine.qtyPerSqft;
         topBeamProduct = prod;
       }
     }
   }
 
-  const wallPanels = bays * panelQtyPerBay;
-  const poles = (bays * poleQtyPerBay) + 1; // 1 extra post at the end
-  const beams = bays * beamQtyPerBay;
-  const topBeams = bays * topBeamQtyPerBay;
+  const wallPanels = Math.ceil(wallAreaSqft * panelQtyPerSqft);
+  const poles = Math.ceil(wallAreaSqft * poleQtyPerSqft) + 1; // 1 extra post at the end
+  const beams = Math.ceil(wallAreaSqft * beamQtyPerSqft);
+  const topBeams = Math.ceil(wallAreaSqft * topBeamQtyPerSqft);
 
   // Site Installation Raw Materials (needed on client's site for Column foundations & joint grouting)
   // Dynamically calculated using template's installationMaterials array populated from Raw Material Master
@@ -123,17 +131,20 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
       let multiplier = 0;
       if (item.type === 'per_pole') {
         multiplier = poles;
-      } else if (item.type === 'per_meter') {
-        multiplier = length;
+      } else if (item.type === 'per_sqft' || item.type === 'per_meter') {
+        multiplier = wallAreaSqft;
       }
 
       const totalQty = item.qty * multiplier;
+      const getCategoryName = (cat) => (cat && typeof cat === 'object' ? cat.name : cat);
+      const catName = getCategoryName(mat.category);
+
       let rate = mat.purchaseRate || 0;
-      if (mat.category === 'cement' && site.cementRate) {
+      if (catName === 'cement' && site.cementRate) {
         rate = site.cementRate;
-      } else if (mat.category === 'steel' && site.steelRate) {
+      } else if (catName === 'steel' && site.steelRate) {
         rate = site.steelRate;
-      } else if (['sand', 'aggregate', 'stone_dust', 'fly_ash'].includes(mat.category) && site.aggregateRate) {
+      } else if (['sand', 'aggregate', 'stone_dust', 'fly_ash'].includes(catName) && site.aggregateRate) {
         rate = site.aggregateRate;
       }
       const totalCost = totalQty * rate;
@@ -143,18 +154,18 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
         materialId: mat._id,
         materialName: mat.materialName,
         materialCode: mat.materialCode,
-        category: mat.category,
+        category: catName,
         quantity: Math.ceil(totalQty),
         unit: mat.unit,
         rate,
         totalCost: Math.ceil(totalCost)
       });
 
-      if (mat.category === 'cement') {
+      if (catName === 'cement') {
         cement += totalQty;
-      } else if (mat.category === 'steel') {
+      } else if (catName === 'steel') {
         steel += totalQty;
-      } else if (['sand', 'aggregate', 'stone_dust', 'fly_ash'].includes(mat.category)) {
+      } else if (['sand', 'aggregate', 'stone_dust', 'fly_ash'].includes(catName)) {
         aggregate += totalQty;
       }
     }

@@ -969,3 +969,42 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Custom row highlight for pending payments */
+.data-table__row--alert {
+  background-color: var(--color-danger-bg) !important;
+}
+
+.data-table__row--alert:hover {
+  background-color: #fee2e2 !important;
+}
+
+/* Sticky Actions Column styling */
+.data-table__th--actions,
+.data-table__td--actions {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  border-left: 1px solid var(--color-border);
+}
+
+.data-table__th--actions {
+  background: var(--color-surface) !important;
+  z-index: 3; /* Needs to be above normal thead and th */
+}
+
+.data-table__td--actions {
+  background: var(--color-surface) !important;
+}
+
+/* Ensure background color transition works and overrides row hover */
+.data-table__row:hover .data-table__td--actions {
+  background-color: var(--color-primary-light) !important;
+}
+
+/* For alert/warning rows, ensure the sticky cell matches the row background */
+.data-table__row--alert .data-table__td--actions {
+  background-color: var(--color-danger-bg) !important;
+}
+.data-table__row--alert:hover .data-table__td--actions {
+  background-color: #fee2e2 !important;
+}

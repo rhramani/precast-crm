@@ -29,7 +29,7 @@ const listOrders = async (branchFilter, { page = 1, limit = 10, search, status }
   const [orders, total] = await Promise.all([
     ProductionOrder.find(filter)
       .populate('productId', 'productName productCode unit')
-      .populate('bomId', 'version')
+      .populate('bomId', 'version calculatedCost')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(Number(limit)),
@@ -102,7 +102,7 @@ const createOrder = async (branchId, userId, data) => {
 const getOrder = async (id, branchFilter) => {
   const order = await ProductionOrder.findOne({ _id: id, ...branchFilter })
     .populate('productId', 'productName productCode unit')
-    .populate('bomId', 'version')
+    .populate('bomId', 'version calculatedCost')
     .populate('materialsConsumed.materialId', 'materialName materialCode unit currentQuantity');
 
   if (!order) {
@@ -253,13 +253,13 @@ const completeOrder = async (id, branchFilter, { producedQuantity, damagedQuanti
         queryOpts
       );
 
-      // Low stock notification trigger
-      if (mat.currentQuantity <= mat.minimumQuantity) {
+      // Out of stock notification trigger
+      if (mat.currentQuantity <= 0) {
         const { triggerNotification } = require('../notifications/service');
         await triggerNotification({
           branchId: order.branchId,
-          title: 'Low Stock Warning',
-          message: `Raw Material '${mat.materialName}' current balance is ${balanceAfter.toFixed(2)} ${mat.unit}, which is below the minimum limit (${mat.minimumQuantity} ${mat.unit})`,
+          title: 'Out of Stock Warning',
+          message: `Raw Material '${mat.materialName}' is out of stock (current balance is ${balanceAfter.toFixed(2)} ${mat.unit})`,
           type: 'low_stock',
         });
       }
@@ -319,11 +319,124 @@ const completeOrder = async (id, branchFilter, { producedQuantity, damagedQuanti
   }
 };
 
+// 6. Update Order (fields like plannedQuantity, startDate, orderNumber, productId, branchId)
+const updateOrder = async (id, branchFilter, data, userId) => {
+  const order = await ProductionOrder.findOne({ _id: id, ...branchFilter });
+  if (!order) {
+    const err = new Error('Production order not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  if (order.status === 'completed' || order.status === 'cancelled') {
+    const err = new Error('Completed or cancelled production orders cannot be updated');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Handle product change
+  if (data.productId && data.productId !== order.productId.toString()) {
+    // Only allow product change in draft status
+    if (order.status !== 'draft') {
+      const err = new Error('Product cannot be changed after submitting for production');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const product = await Product.findOne({ _id: data.productId, branchId: order.branchId });
+    if (!product) {
+      const err = new Error('Product not found in this branch');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    // Get active BOM for the new product
+    let bom;
+    if (data.bomId) {
+      bom = await BOM.findOne({ _id: data.bomId, productId: data.productId });
+    } else {
+      bom = await BOM.findOne({ productId: data.productId, isActive: true });
+    }
+
+    if (!bom) {
+      const err = new Error('No active Bill of Materials (BOM) found for this product. Please define a BOM first.');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    order.productId = data.productId;
+    order.bomId = bom._id;
+  }
+
+  // If plannedQuantity changes or productId changes, we must recalculate materialsConsumed
+  const quantityChanged = data.plannedQuantity !== undefined && Number(data.plannedQuantity) !== order.plannedQuantity;
+  const productChanged = data.productId !== undefined && data.productId !== order.productId.toString();
+
+  if (quantityChanged || productChanged) {
+    const qty = data.plannedQuantity !== undefined ? Number(data.plannedQuantity) : order.plannedQuantity;
+    if (isNaN(qty) || qty <= 0) {
+      const err = new Error('Planned quantity must be greater than zero');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    // Fetch BOM to recalculate materialsConsumed
+    const bom = await BOM.findById(order.bomId);
+    if (!bom) {
+      const err = new Error('Associated BOM not found');
+      err.statusCode = 404;
+      throw err;
+    }
+
+    order.plannedQuantity = qty;
+    order.materialsConsumed = bom.items.map((item) => {
+      const requiredQty = item.quantityRequired * (1 + (item.wastagePercent || 0) / 100);
+      return {
+        materialId: item.materialId,
+        quantity: requiredQty * qty,
+      };
+    });
+  }
+
+  if (data.startDate !== undefined) {
+    order.startDate = data.startDate || null;
+  }
+
+  if (data.orderNumber) {
+    // Check uniqueness
+    const conflict = await ProductionOrder.findOne({
+      branchId: order.branchId,
+      orderNumber: data.orderNumber,
+      _id: { $ne: id },
+    });
+    if (conflict) {
+      const err = new Error(`Production order number '${data.orderNumber}' is already in use`);
+      err.statusCode = 409;
+      throw err;
+    }
+    order.orderNumber = data.orderNumber;
+  }
+
+  // If super admin and branch changes (only allow in draft)
+  if (data.branchId && data.branchId !== order.branchId.toString()) {
+    if (order.status !== 'draft') {
+      const err = new Error('Branch cannot be changed after submitting for production');
+      err.statusCode = 400;
+      throw err;
+    }
+    order.branchId = data.branchId;
+  }
+
+  await order.save();
+  return order;
+};
+
 module.exports = {
   listOrders,
   createOrder,
   getOrder,
   updateStatus,
   completeOrder,
+  updateOrder,
 };
 

@@ -28,6 +28,7 @@ import {
   useGetProjectReportQuery,
   useGetFinancialReportQuery,
   useGetBranchPerformanceQuery,
+  useGetDashboardStatsQuery,
 } from '../store/api/reportApi';
 import { useGetDispatchesQuery } from '../store/api/dispatchApi';
 import { useGetLowStockQuery, useGetRawMaterialsQuery } from '../store/api/rawMaterialApi';
@@ -91,27 +92,63 @@ const Dashboard = () => {
   const role = useSelector(selectCurrentRole) || 'branch';
   const currentBranch = useSelector(selectCurrentBranch);
 
-  const [activeTimeline, setActiveTimeline] = useState('monthly');
+  const getFirstDayOfCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    return `${year}-${month}-01`;
+  };
+
+  const getLastDayOfCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    return `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+  };
+
+  const [customStartDate, setCustomStartDate] = useState(getFirstDayOfCurrentMonth());
+  const [customEndDate, setCustomEndDate] = useState(getLastDayOfCurrentMonth());
+  const [activeTab, setActiveTab] = useState('purchases');
   const [activeHoverPoint, setActiveHoverPoint] = useState(null);
   const [activeHoverPoint2, setActiveHoverPoint2] = useState(null);
 
+  const branchId = currentBranch?._id;
+
   // Queries
+  const { data: dbStatsRes } = useGetDashboardStatsQuery({
+    branchId,
+    dateFilter: 'custom',
+    startDate: customStartDate,
+    endDate: customEndDate
+  });
   const { data: branchesRes } = useGetBranchesQuery({ limit: 100 });
-  const { data: custRes } = useGetCustomerReportQuery();
-  const { data: projRes } = useGetProjectReportQuery();
-  const { data: prodRes } = useGetProductionReportQuery();
-  const { data: invRes } = useGetInventoryReportQuery();
-  const { data: dispatchRes } = useGetDispatchesQuery({ limit: 5 });
-  const { data: finRes } = useGetFinancialReportQuery();
-  const { data: lowStockRes } = useGetLowStockQuery();
-  const { data: installRes } = useGetInstallationsQuery({ limit: 5 });
-  const { data: invoicesRes } = useGetInvoicesQuery({ limit: 100 });
-  const { data: prodOrdersRes } = useGetProductionOrdersQuery({ limit: 100 });
-  const { data: perfRes } = useGetBranchPerformanceQuery(undefined, { skip: role !== 'super_admin' });
+  const reportParams = {
+    branchId,
+    dateFilter: 'custom',
+    startDate: customStartDate,
+    endDate: customEndDate
+  };
+
+  const { data: custRes } = useGetCustomerReportQuery(reportParams);
+  const { data: projRes } = useGetProjectReportQuery(reportParams);
+  const { data: prodRes } = useGetProductionReportQuery(reportParams);
+  const { data: invRes } = useGetInventoryReportQuery({ branchId });
+  const { data: dispatchRes } = useGetDispatchesQuery({ branchId, limit: 5, startDate: customStartDate, endDate: customEndDate });
+  const { data: finRes } = useGetFinancialReportQuery(reportParams);
+  const { data: lowStockRes } = useGetLowStockQuery({ branchId });
+  const { data: installRes } = useGetInstallationsQuery({ branchId, limit: 5, startDate: customStartDate, endDate: customEndDate });
+  const { data: invoicesRes } = useGetInvoicesQuery({ branchId, limit: 100 });
+  const { data: prodOrdersRes } = useGetProductionOrdersQuery({ branchId, limit: 100 });
+  const { data: perfRes } = useGetBranchPerformanceQuery({
+    dateFilter: 'custom',
+    startDate: customStartDate,
+    endDate: customEndDate
+  }, { skip: role !== 'super_admin' });
   // Smart operational data
-  const { data: rawMatRes } = useGetRawMaterialsQuery({ limit: 100 });
-  const { data: fgInvRes } = useGetFinishedGoodsInventoryQuery();
-  const { data: labourListRes } = useGetLabourersQuery({ limit: 100 });
+  const { data: rawMatRes } = useGetRawMaterialsQuery({ branchId, limit: 100 });
+  const { data: fgInvRes } = useGetFinishedGoodsInventoryQuery({ branchId });
+  const { data: labourListRes } = useGetLabourersQuery({ branchId, limit: 100 });
 
   // Greetings banner values
   const greetingName = user?.name || user?.branchName || 'Patel';
@@ -122,11 +159,11 @@ const Dashboard = () => {
     year: 'numeric',
   });
 
-  // Calculate dashboard summary metrics
-  const totalProductionToday = prodRes?.data?.summary?.totalProduced ?? 0;
-  const totalRevenueVal = finRes?.data?.revenue?.totalInvoiced ?? 0;
+  // Calculate dashboard summary metrics from the date-filtered API
+  const totalProductionToday = dbStatsRes?.data?.kpi?.totalProduced ?? 0;
+  const totalRevenueVal = dbStatsRes?.data?.kpi?.totalRevenue ?? 0;
   const rawLowStockCount = lowStockRes?.data?.materials?.length ?? 0;
-  const efficiencyPercent = prodRes?.data?.summary?.efficiencyPercent ?? 0;
+  const efficiencyPercent = dbStatsRes?.data?.kpi?.efficiencyPercent ?? 0;
 
   // Indian currency formatter
   const formatCurrency = (val) => {
@@ -135,18 +172,8 @@ const Dashboard = () => {
 
   // Calculate lead time dynamically
   let avgLeadTimeText = '0 Days';
-  if (prodOrdersRes?.data?.productionOrders) {
-    const completed = prodOrdersRes.data.productionOrders.filter(
-      (o) => o.status === 'completed' && o.completedDate && o.startDate
-    );
-    if (completed.length > 0) {
-      const totalMs = completed.reduce(
-        (sum, o) => sum + (new Date(o.completedDate) - new Date(o.startDate)),
-        0
-      );
-      const avgDays = totalMs / (1000 * 60 * 60 * 24 * completed.length);
-      avgLeadTimeText = `${avgDays.toFixed(1)} Days`;
-    }
+  if (dbStatsRes?.data?.kpi?.avgLeadTime !== undefined) {
+    avgLeadTimeText = `${dbStatsRes.data.kpi.avgLeadTime.toFixed(1)} Days`;
   }
 
   // 1. KPI widgets
@@ -155,7 +182,7 @@ const Dashboard = () => {
       label: 'TOTAL PRODUCTION',
       value: `${totalProductionToday.toLocaleString('en-IN')} Units`,
       delta: 0,
-      trendText: 'all-time',
+      trendText: 'selected period',
       icon: <Factory size={20} />,
       chipIndex: 0,
     },
@@ -163,7 +190,7 @@ const Dashboard = () => {
       label: 'AVG. LEAD TIME',
       value: avgLeadTimeText,
       delta: 0,
-      trendText: 'all-time',
+      trendText: 'selected period',
       icon: <Clock size={20} />,
       chipIndex: 1,
     },
@@ -171,7 +198,7 @@ const Dashboard = () => {
       label: 'TOTAL REVENUE',
       value: formatCurrency(totalRevenueVal),
       delta: 0,
-      trendText: 'all-time',
+      trendText: 'selected period',
       icon: <DollarSign size={20} />,
       chipIndex: 2,
     },
@@ -179,29 +206,36 @@ const Dashboard = () => {
       label: 'EFFICIENCY RATE',
       value: `${efficiencyPercent.toFixed(1)}%`,
       delta: 0,
-      trendText: 'all-time',
+      trendText: 'selected period',
       icon: <TrendingUp size={20} />,
       chipIndex: 3,
     },
   ];
 
-  // 2. Dynamic Spline Chart Data - aggregated from real invoices
-  const invoicesList = invoicesRes?.data?.invoices || [];
-  const dynamicMonthlyPoints = Array(12).fill(0);
-  const monthlyLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  // 2. Dynamic Spline Chart Data - aggregated from new consolidated stats
+  const chartData = dbStatsRes?.data?.chartData || [];
+  const trendPoints = chartData.map((t) => {
+    switch (activeTab) {
+      case 'purchases':
+        return t.purchases;
+      case 'production':
+        return t.production;
+      case 'expenses':
+        return t.expenses;
+      case 'profit':
+        return t.profit;
+      case 'projects':
+        return t.projects;
+      case 'efficiency':
+        return t.efficiency;
+      case 'revenue':
+      default:
+        return t.revenue;
+    }
+  });
 
-  if (invoicesList.length > 0) {
-    invoicesList.forEach((inv) => {
-      if (inv.status !== 'cancelled' && inv.createdAt) {
-        const monthIndex = new Date(inv.createdAt).getMonth();
-        if (monthIndex >= 0 && monthIndex < 12) {
-          dynamicMonthlyPoints[monthIndex] += (inv.grandTotal || 0);
-        }
-      }
-    });
-  }
-
-  const { linePath, areaPath, coords, yLabels } = generateSplinePaths(dynamicMonthlyPoints, 800, 320, 65, 40, 40, 40);
+  const chartLabels = chartData.map((t) => t.label);
+  const { linePath, areaPath, coords, yLabels } = generateSplinePaths(trendPoints, 800, 320, 65, 40, 40, 40);
 
   // 3. Hourly splines - Aggregated from real production orders
   const prodOrders = prodOrdersRes?.data?.productionOrders || [];
@@ -268,9 +302,9 @@ const Dashboard = () => {
   const rawLowStockList = lowStockRes?.data?.materials || [];
   const lowStockAlertItems = rawLowStockList.map(mat => ({
     materialName: mat.materialName,
-    alertType: 'CRITICAL STOCK',
-    infoText: `Stock at ${mat.currentQuantity} ${mat.unit || 'kg'} • Minimum: ${mat.minimumQuantity} ${mat.unit || 'kg'}`,
-    statusLabel: 'Low Stock',
+    alertType: 'OUT OF STOCK',
+    infoText: `Stock at ${mat.currentQuantity} ${mat.unit || 'kg'}`,
+    statusLabel: 'Out of Stock',
   }));
 
   // Dynamic daily stats calculation based on last 4 calendar days of completed production orders
@@ -304,17 +338,16 @@ const Dashboard = () => {
     value: (d.qty / maxQty) * 100
   }));
 
-  // Dynamic revenue growth delta: compare current month invoices total vs last month
-  const currentMonthIdx = new Date().getMonth();
-  const currentMonthRevenue = dynamicMonthlyPoints[currentMonthIdx] || 0;
-  const lastMonthRevenue = currentMonthIdx > 0 ? dynamicMonthlyPoints[currentMonthIdx - 1] : 0;
+  // Dynamic revenue growth delta: compare current period vs previous period from chartData
+  const currentPeriodRevenue = chartData[chartData.length - 1]?.revenue || 0;
+  const lastPeriodRevenue = chartData[chartData.length - 2]?.revenue || 0;
   let revenueDeltaText = '0.00%';
   let revenueDeltaIsUp = true;
-  if (lastMonthRevenue > 0) {
-    const delta = ((currentMonthRevenue - lastMonthRevenue) / lastMonthRevenue) * 100;
+  if (lastPeriodRevenue > 0) {
+    const delta = ((currentPeriodRevenue - lastPeriodRevenue) / lastPeriodRevenue) * 100;
     revenueDeltaText = `${Math.abs(delta).toFixed(2)}%`;
     revenueDeltaIsUp = delta >= 0;
-  } else if (currentMonthRevenue > 0) {
+  } else if (currentPeriodRevenue > 0) {
     revenueDeltaText = '100.00%';
     revenueDeltaIsUp = true;
   }
@@ -361,12 +394,12 @@ const Dashboard = () => {
     const totalBranches   = branchesRes?.data?.branches?.length ?? 0;
     const activeBranches  = branchesRes?.data?.branches?.filter(b => b.status === 'active').length ?? 0;
     
-    // Fetch direct dynamic financial summaries
-    const totalProduction = prodRes?.data?.summary?.totalProduced ?? 0;
-    const totalSales      = finRes?.data?.revenue?.totalInvoiced ?? 0;
-    const totalCosts      = finRes?.data?.expenses?.totalOperatingCosts ?? 0;
-    const netProfit       = totalSales - totalCosts;
-    const avgMargin       = finRes?.data?.profitability?.marginPercent ?? 0;
+    // Fetch direct dynamic financial summaries from the date-filtered consolidated stats
+    const totalProduction = dbStatsRes?.data?.kpi?.totalProduced ?? 0;
+    const totalSales      = dbStatsRes?.data?.kpi?.totalRevenue ?? 0;
+    const totalCosts      = dbStatsRes?.data?.kpi?.totalExpenses ?? 0;
+    const netProfit       = dbStatsRes?.data?.kpi?.netProfit ?? 0;
+    const avgMargin       = dbStatsRes?.data?.kpi?.marginPercent ?? 0;
 
     // Report aggregates
     const customersCount = custRes?.data?.customers?.length ?? 0;
@@ -393,24 +426,62 @@ const Dashboard = () => {
     const rawLowStockList = lowStockRes?.data?.materials || [];
     const lowStockAlertItems = rawLowStockList.map(mat => ({
       materialName: mat.materialName,
-      alertType: 'CRITICAL STOCK',
-      infoText: `Stock at ${mat.currentQuantity} ${mat.unit || 'kg'} • Minimum: ${mat.minimumQuantity} ${mat.unit || 'kg'}`,
-      statusLabel: 'Low Stock',
+      alertType: 'OUT OF STOCK',
+      infoText: `Stock at ${mat.currentQuantity} ${mat.unit || 'kg'}`,
+      statusLabel: 'Out of Stock',
     }));
 
     return (
       <div className="dashboard-v2">
         {/* Greetings banner */}
-        <div className="dashboard-v2__welcome-banner">
+        <div className="dashboard-v2__welcome-banner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div className="dashboard-v2__welcome-left">
             <div className="dashboard-v2__context-pill">
               <span className="dashboard-v2__context-icon" style={{ display: 'flex', alignItems: 'center' }}><Building2 size={14} /></span>
               <span>All Branches Consolidated Monitor</span>
             </div>
             <h1 className="dashboard-v2__welcome-title">Welcome back, {greetingName}!</h1>
-            <p className="dashboard-v2__welcome-subtitle">
-              Organization performance summary · All Time
+             <p className="dashboard-v2__welcome-subtitle">
+              Organization performance summary · {customStartDate ? new Date(customStartDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} to {customEndDate ? new Date(customEndDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
             </p>
+          </div>
+
+          {/* Custom Date Picker Inputs */}
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--color-surface)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>From:</span>
+              <input
+                type="date"
+                value={customStartDate}
+                onChange={(e) => setCustomStartDate(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--color-text-primary)',
+                  border: 'none',
+                  padding: '4px 6px',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 500,
+                  outline: 'none',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid var(--color-border)', paddingLeft: '8px' }}>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>To:</span>
+              <input
+                type="date"
+                value={customEndDate}
+                onChange={(e) => setCustomEndDate(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  color: 'var(--color-text-primary)',
+                  border: 'none',
+                  padding: '4px 6px',
+                  fontSize: 'var(--text-xs)',
+                  fontWeight: 500,
+                  outline: 'none',
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -426,7 +497,7 @@ const Dashboard = () => {
               </div>
               <div className="kpi-card-v2__value">{kpi.value}</div>
               <div className="kpi-card-v2__trend">
-                <span className="kpi-card-v2__trend-label">Consolidated metric</span>
+                <span className="kpi-card-v2__trend-label">selected period metric</span>
               </div>
             </div>
           ))}
@@ -444,7 +515,7 @@ const Dashboard = () => {
               </div>
               <div className="kpi-card-v2__value">{kpi.value}</div>
               <div className="kpi-card-v2__trend">
-                <span className="kpi-card-v2__trend-label">Organizational structure</span>
+                <span className="kpi-card-v2__trend-label">selected period metric</span>
               </div>
             </div>
           ))}
@@ -566,7 +637,7 @@ const Dashboard = () => {
   return (
     <div className="dashboard-v2">
       {/* Greetings banner */}
-      <div className="dashboard-v2__welcome-banner">
+      <div className="dashboard-v2__welcome-banner" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div className="dashboard-v2__welcome-left">
           <div className="dashboard-v2__context-pill">
             <span className="dashboard-v2__context-icon" style={{ display: 'flex', alignItems: 'center' }}><Building2 size={14} /></span>
@@ -574,8 +645,46 @@ const Dashboard = () => {
           </div>
           <h1 className="dashboard-v2__welcome-title">Welcome back, {greetingName}!</h1>
           <p className="dashboard-v2__welcome-subtitle">
-            Your manufacturing overview · All Time
+            Your manufacturing overview · {customStartDate ? new Date(customStartDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} to {customEndDate ? new Date(customEndDate).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' }) : ''}
           </p>
+        </div>
+
+        {/* Custom Date Picker Inputs */}
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'var(--color-surface)', padding: '4px 10px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>From:</span>
+            <input
+              type="date"
+              value={customStartDate}
+              onChange={(e) => setCustomStartDate(e.target.value)}
+              style={{
+                background: 'transparent',
+                color: 'var(--color-text-primary)',
+                border: 'none',
+                padding: '4px 6px',
+                fontSize: 'var(--text-xs)',
+                fontWeight: 500,
+                outline: 'none',
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', borderLeft: '1px solid var(--color-border)', paddingLeft: '8px' }}>
+            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: 600 }}>To:</span>
+            <input
+              type="date"
+              value={customEndDate}
+              onChange={(e) => setCustomEndDate(e.target.value)}
+              style={{
+                background: 'transparent',
+                color: 'var(--color-text-primary)',
+                border: 'none',
+                padding: '4px 6px',
+                fontSize: 'var(--text-xs)',
+                fontWeight: 500,
+                outline: 'none',
+              }}
+            />
+          </div>
         </div>
       </div>
 
@@ -615,7 +724,8 @@ const Dashboard = () => {
           {
             label: 'RAW MATERIAL STOCK',
             value: `${rawMatInStock} / ${rawMatTotal}`,
-            sub: `₹${Number(totalRawQtyValue).toLocaleString('en-IN')} value`,
+            sub: `₹${Number(totalRawQtyValue).toLocaleString('en-IN')} stock value`,
+            extra: `Bought: ₹${Number(dbStatsRes?.data?.kpi?.materialsPurchasesCost || 0).toLocaleString('en-IN')}`,
             icon: <Layers size={20} />,
             color: rawMatInStock < rawMatTotal ? 'var(--color-warning)' : 'var(--color-success)',
             link: '/raw-materials',
@@ -683,6 +793,11 @@ const Dashboard = () => {
                 <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>
                   {kpi.sub}
                 </div>
+                {kpi.extra && (
+                  <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-success)', fontWeight: 600, marginTop: '2px' }}>
+                    {kpi.extra}
+                  </div>
+                )}
                 <div style={{ fontSize: '11px', color: kpi.color, fontWeight: 600, marginTop: '4px' }}>
                   → {kpi.linkLabel}
                 </div>
@@ -695,30 +810,66 @@ const Dashboard = () => {
       {/* Main chart & top products split */}
       <div className="dashboard-v2__row-split">
         {/* Left: Spline Chart card */}
-        <div className="dashboard-v2__card dashboard-v2__card--chart">
-          <div className="dashboard-v2__card-header">
-            <div>
-              <h2 className="dashboard-v2__card-title">Production Performance Overview</h2>
-             <div className="dashboard-v2__chart-highlight">
-                <span className="dashboard-v2__chart-value">{formatCurrency(totalRevenueVal)}</span>
-                <span className={`dashboard-v2__chart-delta ${revenueDeltaIsUp ? '' : 'dashboard-v2__chart-delta--down'}`}>
-                  {revenueDeltaIsUp ? '▲' : '▼'} {revenueDeltaText}
-                </span>
+        {/* Left: Spline Chart card */}
+        <div className="dashboard-v2__card dashboard-v2__card--chart" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div className="dashboard-v2__card-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: '12px', borderBottom: 'none' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <div>
+                <h2 className="dashboard-v2__card-title" style={{ margin: 0 }}>Monthly Business Insights</h2>
+                <div className="dashboard-v2__chart-highlight" style={{ marginTop: '4px' }}>
+                  <span className="dashboard-v2__chart-value" style={{ fontSize: '1.6rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                    {activeTab === 'efficiency'
+                      ? `${efficiencyPercent.toFixed(1)}%`
+                      : activeTab === 'projects'
+                      ? `${dbStatsRes?.data?.kpi?.activeProjects ?? 0} Projects`
+                      : activeTab === 'production'
+                      ? `${totalProductionToday.toLocaleString('en-IN')} Units`
+                      : activeTab === 'expenses'
+                      ? formatCurrency(dbStatsRes?.data?.kpi?.totalExpenses)
+                      : activeTab === 'profit'
+                      ? formatCurrency(dbStatsRes?.data?.kpi?.netProfit)
+                      : formatCurrency(totalRevenueVal)}
+                  </span>
+                  <span className="dashboard-v2__chart-label" style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginLeft: '8px' }}>
+                    Selected Period Total
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="dashboard-v2__actions">
-              <select
-                className="dashboard-v2__select"
-                value={activeTimeline}
-                onChange={(e) => setActiveTimeline(e.target.value)}
-              >
-                <option value="weekly">Weekly</option>
-                <option value="monthly">Monthly</option>
-              </select>
+
+            {/* Metric Selector Tabs */}
+            <div className="dashboard-v2__chart-tabs" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', width: '100%' }}>
+              {[
+                { key: 'purchases', label: 'Purchases (Raw Mat.)' },
+                { key: 'production', label: 'Production Units' },
+                { key: 'expenses', label: 'Operating Costs (Karcha)' },
+                { key: 'profit', label: 'Net Profit' },
+                { key: 'projects', label: 'Projects/Sites' },
+                { key: 'efficiency', label: 'Efficiency %' },
+                { key: 'revenue', label: 'Revenue' }
+              ].map(m => (
+                <button
+                  key={m.key}
+                  onClick={() => setActiveTab(m.key)}
+                  style={{
+                    background: activeTab === m.key ? 'var(--color-primary)' : 'var(--color-surface)',
+                    color: activeTab === m.key ? '#fff' : 'var(--color-text-secondary)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: '20px',
+                    padding: '6px 14px',
+                    fontSize: 'var(--text-xs)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {m.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="dashboard-v2__chart-canvas">
+          <div className="dashboard-v2__chart-canvas" style={{ flex: 1, minHeight: '260px' }}>
             <svg viewBox="0 0 800 320" width="100%" height="100%" className="spline-svg">
               <defs>
                 <linearGradient id="splineGradient" x1="0" y1="0" x2="0" y2="1">
@@ -747,7 +898,11 @@ const Dashboard = () => {
                     fontSize="10"
                     fontWeight="500"
                   >
-                    {item.val >= 100000 
+                    {activeTab === 'efficiency'
+                      ? `${item.val.toFixed(0)}%`
+                      : activeTab === 'projects' || activeTab === 'production'
+                      ? item.val.toLocaleString('en-IN')
+                      : item.val >= 100000 
                       ? `₹${(item.val / 100000).toFixed(1)}L` 
                       : item.val >= 1000 
                       ? `₹${(item.val / 1000).toFixed(0)}k` 
@@ -786,21 +941,23 @@ const Dashboard = () => {
                     onMouseLeave={() => setActiveHoverPoint(null)}
                   />
                   {/* Monthly X Labels */}
-                  <text
-                    x={c.x}
-                    y="310"
-                    textAnchor="middle"
-                    fill="var(--color-text-secondary)"
-                    fontSize="11"
-                    fontWeight="500"
-                  >
-                    {monthlyLabels[i]}
-                  </text>
+                  {((chartData.length <= 12) || (i % 3 === 0)) && (
+                    <text
+                      x={c.x}
+                      y="310"
+                      textAnchor="middle"
+                      fill="var(--color-text-secondary)"
+                      fontSize="10"
+                      fontWeight="500"
+                    >
+                      {chartLabels[i]}
+                    </text>
+                  )}
                 </g>
               ))}
 
               {/* Interactive Tooltip box */}
-              {activeHoverPoint !== null && (
+              {activeHoverPoint !== null && coords[activeHoverPoint] && (
                 <g>
                   <rect
                     x={coords[activeHoverPoint].x - 65}
@@ -819,7 +976,13 @@ const Dashboard = () => {
                     fontSize="11"
                     fontWeight="600"
                   >
-                    Value: {formatCurrency(coords[activeHoverPoint].val)}
+                    {activeTab === 'efficiency'
+                      ? `Val: ${coords[activeHoverPoint].val.toFixed(1)}%`
+                      : activeTab === 'projects'
+                      ? `Val: ${coords[activeHoverPoint].val} Sites`
+                      : activeTab === 'production'
+                      ? `Val: ${coords[activeHoverPoint].val} Units`
+                      : `Val: ${formatCurrency(coords[activeHoverPoint].val)}`}
                   </text>
                 </g>
               )}

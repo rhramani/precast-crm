@@ -3,24 +3,24 @@ const Joi = require('joi');
 const createMaterialSchema = Joi.object({
   materialCode:    Joi.string().trim().allow('', null).optional(),
   materialName:    Joi.string().trim().required(),
-  category:        Joi.string().valid('cement', 'sand', 'aggregate', 'steel', 'chemical', 'fly_ash', 'stone_dust', 'water', 'other').required(),
+  category:        Joi.string().trim().hex().length(24).required(),
   unit:            Joi.string().trim().required(),
-  minimumQuantity: Joi.number().min(0).default(0),
   purchaseRate:    Joi.number().min(0).default(0),
   currentQuantity: Joi.number().min(0).default(0).optional(),
   branchId:        Joi.string().trim().allow(null, ''), // Injectable or required depending on controller/user
   supplierId:      Joi.string().trim().allow(null, '').optional(),
+  date:            Joi.date().iso().optional().allow(null, ''),
 });
 
 const updateMaterialSchema = Joi.object({
   materialCode:    Joi.string().trim().allow('', null),
   materialName:    Joi.string().trim(),
-  category:        Joi.string().valid('cement', 'sand', 'aggregate', 'steel', 'chemical', 'fly_ash', 'stone_dust', 'water', 'other'),
+  category:        Joi.string().trim().hex().length(24),
   unit:            Joi.string().trim(),
-  minimumQuantity: Joi.number().min(0),
   purchaseRate:    Joi.number().min(0),
   branchId:        Joi.string().trim().allow(null, ''),
   supplierId:      Joi.string().trim().allow(null, '').optional(),
+  date:            Joi.date().iso().optional().allow(null, ''),
 });
 
 const stockInOutSchema = Joi.object({

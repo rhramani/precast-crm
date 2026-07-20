@@ -67,6 +67,12 @@ const capacityCalculator = async (req, res) => {
   });
 };
 
+const update = async (req, res) => {
+  const order = await productionService.updateOrder(req.params.id, req.branchFilter, req.body, req.user.userId);
+  await logActivity(req.user.userId, 'update', 'production', order._id, req.ip);
+  res.json({ success: true, message: 'Production order updated successfully', data: { order } });
+};
+
 module.exports = {
   list,
   create,
@@ -74,4 +80,5 @@ module.exports = {
   updateStatus,
   complete,
   capacityCalculator,
+  update,
 };

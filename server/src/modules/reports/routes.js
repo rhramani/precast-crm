@@ -13,5 +13,6 @@ router.get('/customer',         branchScope, controller.customer);
 router.get('/project',          branchScope, controller.project);
 router.get('/financial',        branchScope, controller.financial);
 router.get('/branch-performance', roleCheck('super_admin'), controller.branchPerformance);
+router.get('/dashboard-stats',  branchScope, controller.dashboardStats);
 
 module.exports = router;

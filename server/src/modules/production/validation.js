@@ -25,6 +25,16 @@ const completeOrderSchema = Joi.object({
   remarks: Joi.string().trim().allow('', null),
 });
 
+const updateOrderSchema = Joi.object({
+  productId:       Joi.string().trim().allow('', null),
+  plannedQuantity: Joi.number().integer().positive().allow(null).messages({
+    'number.positive': 'Planned quantity must be greater than zero',
+  }),
+  orderNumber:     Joi.string().trim().allow('', null),
+  startDate:       Joi.date().allow(null),
+  branchId:        Joi.string().trim().allow('', null),
+});
+
 const validate = (schema) => (req, res, next) => {
   const { error } = schema.validate(req.body, { abortEarly: false });
   if (error) {
@@ -38,5 +48,6 @@ module.exports = {
   createOrderSchema,
   updateStatusSchema,
   completeOrderSchema,
+  updateOrderSchema,
   validate,
 };

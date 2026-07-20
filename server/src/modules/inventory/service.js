@@ -4,7 +4,9 @@ const FinishedGoodsInventory = require('./model');
 
 // 1. Raw Materials Inventory Report (with valuations)
 const getRawMaterialsInventory = async (branchFilter) => {
-  const materials = await RawMaterial.find(branchFilter).sort({ currentQuantity: -1 });
+  const materials = await RawMaterial.find(branchFilter)
+    .sort({ currentQuantity: -1 })
+    .populate('category', 'name');
 
   const summary = materials.map((m) => {
     const qty = m.currentQuantity || 0;
@@ -13,13 +15,12 @@ const getRawMaterialsInventory = async (branchFilter) => {
       _id: m._id,
       materialCode: m.materialCode,
       materialName: m.materialName,
-      category: m.category,
+      category: m.category?.name || m.category,
       unit: m.unit,
       currentQuantity: qty,
-      minimumQuantity: m.minimumQuantity,
       purchaseRate: rate,
       totalValuation: qty * rate,
-      isLow: qty <= m.minimumQuantity,
+      isLow: qty <= 0,
     };
   });
 

@@ -3,32 +3,37 @@ import { apiSlice } from '../../app/apiSlice';
 export const reportApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getProductionReport: builder.query({
-      query: () => '/reports/production',
+      query: (params) => ({ url: '/reports/production', params }),
       providesTags: ['Reports'],
     }),
 
     getInventoryReport: builder.query({
-      query: () => '/reports/inventory',
+      query: (params) => ({ url: '/reports/inventory', params }),
       providesTags: ['Reports'],
     }),
 
     getCustomerReport: builder.query({
-      query: () => '/reports/customer',
+      query: (params) => ({ url: '/reports/customer', params }),
       providesTags: ['Reports'],
     }),
 
     getProjectReport: builder.query({
-      query: () => '/reports/project',
+      query: (params) => ({ url: '/reports/project', params }),
       providesTags: ['Reports'],
     }),
 
     getFinancialReport: builder.query({
-      query: () => '/reports/financial',
+      query: (params) => ({ url: '/reports/financial', params }),
       providesTags: ['Reports'],
     }),
 
     getBranchPerformance: builder.query({
-      query: () => '/reports/branch-performance',
+      query: (params) => ({ url: '/reports/branch-performance', params }),
+      providesTags: ['Reports'],
+    }),
+
+    getDashboardStats: builder.query({
+      query: (params) => ({ url: '/reports/dashboard-stats', params }),
       providesTags: ['Reports'],
     }),
   }),
@@ -41,4 +46,5 @@ export const {
   useGetProjectReportQuery,
   useGetFinancialReportQuery,
   useGetBranchPerformanceQuery,
+  useGetDashboardStatsQuery,
 } = reportApi;

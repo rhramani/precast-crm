@@ -5,9 +5,9 @@ const templateProductSchema = Joi.object({
     'any.required': 'Product ID is required for each product line',
     'string.empty': 'Product ID cannot be empty',
   }),
-  qtyPerBay: Joi.number().positive().required().messages({
-    'any.required': 'Quantity per bay is required',
-    'number.positive': 'Quantity per bay must be greater than zero',
+  qtyPerSqft: Joi.number().positive().required().messages({
+    'any.required': 'Quantity per SQFT is required',
+    'number.positive': 'Quantity per SQFT must be greater than zero',
   }),
   unit: Joi.string().trim().default('pcs'),
   note: Joi.string().trim().allow('').default(''),
@@ -22,7 +22,7 @@ const templateMaterialSchema = Joi.object({
     'any.required': 'Quantity is required',
     'number.min': 'Quantity must be non-negative',
   }),
-  type: Joi.string().valid('per_pole', 'per_meter').default('per_pole'),
+  type: Joi.string().valid('per_pole', 'per_sqft', 'per_meter').default('per_pole'),
   note: Joi.string().trim().allow('').default(''),
 });
 
@@ -31,14 +31,16 @@ const createTemplateSchema = Joi.object({
     'any.required': 'Template name is required',
     'string.empty': 'Template name cannot be empty',
   }),
+  productId: Joi.string().trim().allow('', null),
+  productSqft: Joi.number().min(0).default(0),
   // Accepts any category string — dynamically sourced from Product Master
   category: Joi.string().trim().required().messages({
     'any.required': 'Wall category is required',
     'string.empty': 'Category cannot be empty',
   }),
   description: Joi.string().trim().allow('').default(''),
-  baySpacingMeters: Joi.number().min(0.1).default(3).messages({
-    'number.min': 'Bay spacing must be at least 0.1 meter',
+  heightFeet: Joi.number().min(0.1).default(6).messages({
+    'number.min': 'Wall height must be at least 0.1 feet',
   }),
   products: Joi.array().items(templateProductSchema).default([]),
   installationMaterials: Joi.array().items(templateMaterialSchema).default([]),
@@ -48,9 +50,11 @@ const createTemplateSchema = Joi.object({
 
 const updateTemplateSchema = Joi.object({
   name: Joi.string().trim(),
+  productId: Joi.string().trim().allow('', null),
+  productSqft: Joi.number().min(0),
   category: Joi.string().trim(),
   description: Joi.string().trim().allow(''),
-  baySpacingMeters: Joi.number().min(0.1),
+  heightFeet: Joi.number().min(0.1),
   products: Joi.array().items(templateProductSchema),
   installationMaterials: Joi.array().items(templateMaterialSchema),
   isDefault: Joi.boolean(),

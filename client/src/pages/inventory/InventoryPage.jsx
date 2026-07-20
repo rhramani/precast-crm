@@ -39,17 +39,16 @@ const RawMaterialsTab = () => {
   const columns = [
     { key: 'materialCode', label: 'Code', render: (val) => <code style={{ fontSize: '12px', background: 'var(--color-primary-light)', padding: '2px 6px', borderRadius: '4px' }}>{val}</code> },
     { key: 'materialName', label: 'Material Name' },
-    { key: 'category', label: 'Category', render: (val) => <span style={{ textTransform: 'capitalize' }}>{val?.replace(/_/g, ' ')}</span> },
+    { key: 'category', label: 'Category', render: (val) => <span style={{ textTransform: 'capitalize' }}>{(val?.name || val || '')?.replace(/_/g, ' ')}</span> },
     {
       key: 'currentQuantity',
       label: 'Available Quantity',
       render: (val, row) => (
         <span style={{ fontWeight: 600, color: row.isLow ? 'var(--color-danger)' : 'var(--color-success)' }}>
-          {val} {row.unit} {row.isLow && <span style={{ fontSize: '11px', background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderRadius: '4px', padding: '1px 5px', marginLeft: '4px' }}>LOW</span>}
+          {val} {row.unit} {row.isLow && <span style={{ fontSize: '11px', background: 'var(--color-danger-bg)', color: 'var(--color-danger)', borderRadius: '4px', padding: '1px 5px', marginLeft: '4px' }}>OUT</span>}
         </span>
       ),
     },
-    { key: 'minimumQuantity', label: 'Minimum Limit', render: (val, row) => `${val} ${row.unit}` },
     { key: 'purchaseRate', label: 'Unit Rate (₹)', render: (val) => `₹${val?.toFixed(2)}` },
     { key: 'totalValuation', label: 'Stock Value (₹)', render: (val) => <strong>₹{val?.toFixed(2)}</strong> },
   ];

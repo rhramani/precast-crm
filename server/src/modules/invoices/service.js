@@ -1,6 +1,8 @@
 const Invoice = require('./model');
 const Customer = require('../customers/model');
 const Project = require('../projects/model');
+const Quotation = require('../quotations/model');
+const Payment = require('../payments/model');
 
 const buildMeta = (page, limit, total) => ({
   page,
@@ -167,24 +169,21 @@ const getInvoicesByCustomer = async (customerId) => {
   return invoices;
 };
 
-// Helper: compute outstanding for a customer
+// Helper: compute outstanding for a customer based on accepted quotations and direct payments
 const getCustomerOutstandingData = async (customerId) => {
-  const invoices = await Invoice.find({
-    customerId,
-    status: { $in: ['unpaid', 'partially_paid'] },
-  });
+  const acceptedQuotations = await Quotation.find({ customerId, status: 'accepted' });
+  let totalContractValue = acceptedQuotations.reduce((sum, q) => sum + (q.grandTotal || 0), 0);
 
-  let totalInvoiced = 0;
-  let totalPaid = 0;
+  if (totalContractValue === 0) {
+    const allInvoices = await Invoice.find({ customerId });
+    totalContractValue = allInvoices.reduce((sum, inv) => sum + (inv.grandTotal || 0), 0);
+  }
 
-  const allInvoices = await Invoice.find({ customerId });
-  allInvoices.forEach((inv) => {
-    totalInvoiced += inv.grandTotal || 0;
-    totalPaid += inv.paidAmount || 0;
-  });
+  const payments = await Payment.find({ customerId });
+  const totalPaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
-  const outstandingAmount = totalInvoiced - totalPaid;
-  return { totalInvoiced, totalPaid, outstandingAmount };
+  const outstandingAmount = Math.max(0, totalContractValue - totalPaid);
+  return { totalInvoiced: totalContractValue, totalPaid, outstandingAmount };
 };
 
 module.exports = {

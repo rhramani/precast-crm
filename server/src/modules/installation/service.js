@@ -10,13 +10,16 @@ const buildMeta = (page, limit, total) => ({
 });
 
 // 1. List Installations
-const listInstallations = async (branchFilter, { page = 1, limit = 10, search, status }) => {
+const listInstallations = async (branchFilter, { page = 1, limit = 10, search, status, startDate, endDate }) => {
   const filter = { ...branchFilter };
   if (search) {
     filter.installNumber = { $regex: search, $options: 'i' };
   }
   if (status) {
     filter.status = status;
+  }
+  if (startDate) {
+    filter.startDate = endDate ? { $gte: new Date(startDate), $lte: new Date(endDate) } : { $gte: new Date(startDate) };
   }
 
   const skip = (page - 1) * limit;

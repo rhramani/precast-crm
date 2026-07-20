@@ -66,34 +66,36 @@ const seed = async () => {
     branchId:         BRANCH_ID,
     name:             'Standard Compound Wall',
     category:         'compound_wall',
-    description:      'Standard precast compound wall with 8 panels per bay, column, beam and top beam. Bay spacing 3m. Suitable for residential and commercial boundary walls up to 2.4m height.',
-    baySpacingMeters: 3,
+    productId:        wallPanel._id,
+    productSqft:      5.81,
+    description:      'Standard precast compound wall. Suitable for residential and commercial boundary walls up to 6ft height.',
+    heightFeet:       6,
     isDefault:        true,
     isActive:         true,
     products: [
       {
         productId: wallPanel._id,
-        qtyPerBay: 8,
+        qtyPerSqft: 0.1355,
         unit:      'pcs',
-        note:      '8 panels stacked vertically per bay for 2.4m height wall',
+        note:      'Cement wall panel / slab',
       },
       {
         productId: column._id,
-        qtyPerBay: 1,
+        qtyPerSqft: 0.0169,
         unit:      'pcs',
-        note:      '1 boundary wall slab/column per bay',
+        note:      'Boundary wall column/post',
       },
       {
         productId: beam._id,
-        qtyPerBay: 1,
+        qtyPerSqft: 0.0169,
         unit:      'pcs',
-        note:      '1 horizontal H-beam per bay for structural support',
+        note:      'Horizontal H-beam for support',
       },
       {
         productId: topBeam._id,
-        qtyPerBay: 1,
+        qtyPerSqft: 0.0169,
         unit:      'pcs',
-        note:      '1 top beam per bay for wall finishing',
+        note:      'Top beam for wall finishing',
       },
     ],
   });
@@ -101,16 +103,17 @@ const seed = async () => {
   console.log('\n🎉 Wall Category Template created!');
   console.log('   Name      :', template.name);
   console.log('   Category  :', template.category);
-  console.log('   Bay Space :', template.baySpacingMeters, 'meters');
+  console.log('   Height    :', template.heightFeet, 'feet');
   console.log('   Products  :', template.products.length, 'items');
   console.log('   ID        :', template._id.toString());
-  console.log('\n💡 Example — for 500 meter compound wall:');
+  console.log('\n💡 Example — for 500 meter compound wall (assuming 6ft height):');
 
-  const bays = Math.ceil(500 / template.baySpacingMeters);
-  console.log(`   Bays = ceil(500 / ${template.baySpacingMeters}) = ${bays}`);
+  const wallAreaSqft = (500 / 0.3048) * template.heightFeet;
+  console.log(`   Wall Area = (500 / 0.3048) * ${template.heightFeet} = ${wallAreaSqft.toFixed(2)} SQFT`);
   template.products.forEach(p => {
     const name = [wallPanel, column, beam, topBeam].find(pr => pr._id.equals(p.productId))?.productName || '';
-    console.log(`   ${name}: ${p.qtyPerBay} × ${bays} = ${p.qtyPerBay * bays} pcs`);
+    const total = Math.ceil(p.qtyPerSqft * wallAreaSqft);
+    console.log(`   ${name}: ${p.qtyPerSqft} × ${wallAreaSqft.toFixed(2)} SQFT = ${total} pcs`);
   });
 
   process.exit(0);

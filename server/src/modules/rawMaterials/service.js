@@ -27,7 +27,12 @@ const listMaterials = async (branchFilter, { page = 1, limit = 10, search, categ
   const sort = { [sortBy]: sortOrder === 'asc' ? 1 : -1 };
 
   const [materials, total] = await Promise.all([
-    RawMaterial.find(filter).sort(sort).skip(skip).limit(Number(limit)).populate('supplierId', 'supplierName'),
+    RawMaterial.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(Number(limit))
+      .populate('supplierId', 'supplierName')
+      .populate('category', 'name'),
     RawMaterial.countDocuments(filter),
   ]);
 
@@ -52,6 +57,7 @@ const createMaterial = async (branchId, data) => {
     materialCode,
     branchId,
     currentQuantity: data.currentQuantity || 0,
+    date: data.date || undefined,
   });
 
   return material;
@@ -218,9 +224,9 @@ const transferStock = async ({ materialCode, fromBranchId, toBranchId, quantity,
       materialName: sourceMaterial.materialName,
       category: sourceMaterial.category,
       unit: sourceMaterial.unit,
-      minimumQuantity: sourceMaterial.minimumQuantity,
       purchaseRate: sourceMaterial.purchaseRate,
       currentQuantity: 0,
+      date: sourceMaterial.date,
     });
   }
 
@@ -286,10 +292,10 @@ const listLedger = async (materialId, branchFilter, { page = 1, limit = 10 }) =>
 
 // 9. Get Low Stock Materials
 const getLowStock = async (branchFilter) => {
-  // Finds materials scoped to branch filter where quantity <= minQty
+  // Finds materials scoped to branch filter where quantity <= 0
   const materials = await RawMaterial.find({
     ...branchFilter,
-    $expr: { $lte: ['$currentQuantity', '$minimumQuantity'] },
+    currentQuantity: { $lte: 0 },
   });
   return materials;
 };

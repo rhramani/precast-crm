@@ -7,7 +7,8 @@ import {
   useDeleteWallTemplateMutation,
   useSetDefaultWallTemplateMutation,
 } from '../../store/api/wallTemplateApi';
-import { useGetProductsQuery, useGetProductCategoriesQuery } from '../../store/api/productApi';
+import { useGetProductsQuery } from '../../store/api/productApi';
+import { useGetProductCategoriesQuery } from '../../store/api/productCategoryApi';
 import { useGetRawMaterialsQuery } from '../../store/api/rawMaterialApi';
 import { selectCurrentRole } from '../../store/slices/authSlice';
 import FormDrawer from '../../components/ui/FormDrawer';
@@ -26,27 +27,33 @@ const COLOR_PALETTE = [
   '#7C3AED', '#475569',
 ];
 
-const prettifyCategory = (cat) =>
-  cat ? cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()) : '';
+const prettifyCategory = (cat) => {
+  if (!cat) return '';
+  if (typeof cat === 'object') return cat.name || '';
+  return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
-const getCategoryColor = (cat, allCategories) => {
-  const idx = allCategories.indexOf(cat);
+const getCategoryColor = (catId, allCategories) => {
+  const ids = allCategories.map(c => c._id || c);
+  const idx = ids.indexOf(catId);
   return COLOR_PALETTE[(idx >= 0 ? idx : 0) % COLOR_PALETTE.length];
 };
 
 const EMPTY_FORM = {
   name: '',
+  productId: '',
+  productSqft: 0,
   category: '',
   description: '',
-  baySpacingMeters: 3,
+  heightFeet: 6,
   products: [],
   installationMaterials: [],
   isDefault: false,
   isActive: true,
 };
 
-const EMPTY_PRODUCT_LINE = { productId: '', qtyPerBay: 1, unit: 'pcs', note: '' };
-const EMPTY_MATERIAL_LINE = { materialId: '', qty: 1, type: 'per_meter', note: '' };
+const EMPTY_PRODUCT_LINE = { productId: '', qtyPerSqft: 0.1355, unit: 'pcs', note: '' };
+const EMPTY_MATERIAL_LINE = { materialId: '', qty: 1, type: 'per_sqft', note: '' };
 
 // ─────────────────────────────────────────────
 // Icons (inline SVG — no extra dep)
@@ -112,7 +119,7 @@ const WallTemplatePage = () => {
 
   const handleOpenAdd = () => {
     setSelectedTemplate(null);
-    setForm({ ...EMPTY_FORM, category: productCategories[0] || '' });
+    setForm({ ...EMPTY_FORM, category: productCategories[0]?._id || '' });
     setValidationErrors({});
     setDrawerOpen(true);
   };
@@ -121,19 +128,21 @@ const WallTemplatePage = () => {
     setSelectedTemplate(tmpl);
     setForm({
       name:             tmpl.name            || '',
-      category:         tmpl.category        || '',
+      productId:        tmpl.productId?._id  || tmpl.productId || '',
+      productSqft:      tmpl.productSqft     || 0,
+      category:         tmpl.category?._id || tmpl.category || '',
       description:      tmpl.description     || '',
-      baySpacingMeters: tmpl.baySpacingMeters ?? 3,
+      heightFeet:       tmpl.heightFeet      ?? 6,
       products: (tmpl.products || []).map((line) => ({
         productId: line.productId?._id || line.productId || '',
-        qtyPerBay: line.qtyPerBay ?? 1,
+        qtyPerSqft: line.qtyPerSqft ?? 0.1355,
         unit:      line.unit      || 'pcs',
         note:      line.note      || '',
       })),
       installationMaterials: (tmpl.installationMaterials || []).map((line) => ({
         materialId: line.materialId?._id || line.materialId || '',
         qty:        line.qty        ?? 1,
-        type:       'per_meter',
+        type:       line.type       || 'per_sqft',
         note:       line.note       || '',
       })),
       isDefault: tmpl.isDefault ?? false,
@@ -156,7 +165,7 @@ const WallTemplatePage = () => {
     form.products.forEach((line, i) => {
       if (!line.productId)
         errors[`product_${i}_id`]  = 'Select a product';
-      if (!line.qtyPerBay || Number(line.qtyPerBay) <= 0)
+      if (!line.qtyPerSqft || Number(line.qtyPerSqft) <= 0)
         errors[`product_${i}_qty`] = 'Qty must be > 0';
     });
 
@@ -207,9 +216,35 @@ const WallTemplatePage = () => {
     setForm((prev) => {
       const updated = [...prev.products];
       updated[index] = { ...updated[index], [field]: value };
+      
       if (field === 'productId' && value) {
         const prod = allProducts.find((p) => p._id === value);
-        if (prod) updated[index].unit = prod.unit || 'pcs';
+        if (prod) {
+          updated[index].unit = prod.unit || 'pcs';
+          
+          // Auto-calculate Qty/SQFT based on product category dimensions
+          const catKey = prod.category?.name
+            ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
+            : (typeof prod.category === 'string' ? prod.category : '');
+
+          const parentProd = allProducts.find((p) => p._id === prev.productId);
+          const parentH = parentProd?.dimensions?.height || 1.8; // default 1.8m (6ft)
+          const spacingFeet = parentH / 0.3048;
+          const wallHeightFeet = prev.heightFeet || 6;
+          const bayAreaSqft = spacingFeet * wallHeightFeet;
+
+          const w = prod.dimensions?.width || 0.3;
+          const h = prod.dimensions?.height || 1.8;
+          const productAreaSqft = w * h * 10.7639;
+
+          if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey)) {
+            updated[index].qtyPerSqft = Number((1 / (productAreaSqft || 5.81)).toFixed(6));
+          } else if (['pole', 'column', 'beam', 'top_beam'].includes(catKey)) {
+            updated[index].qtyPerSqft = Number((1 / (bayAreaSqft || 36)).toFixed(6));
+          } else {
+            updated[index].qtyPerSqft = 1;
+          }
+        }
       }
       return { ...prev, products: updated };
     });
@@ -235,9 +270,9 @@ const WallTemplatePage = () => {
   // ── Group templates by category ───────────────
 
   const groupedTemplates = templates.reduce((acc, tmpl) => {
-    const cat = tmpl.category;
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(tmpl);
+    const catId = tmpl.category?._id || tmpl.category || 'other';
+    if (!acc[catId]) acc[catId] = [];
+    acc[catId].push(tmpl);
     return acc;
   }, {});
 
@@ -254,7 +289,7 @@ const WallTemplatePage = () => {
           <div>
             <h1 className="wtp-header__title">Wall Category Templates</h1>
             <p className="wtp-header__subtitle">
-              Define which products and how many pieces are needed per bay for each wall type.
+              Define which products and how many pieces are needed per SQFT for each wall type.
               Used automatically by the Site Requirement Calculator.
             </p>
           </div>
@@ -273,13 +308,13 @@ const WallTemplatePage = () => {
         >
           All Categories
         </button>
-        {productCategories.map((cat) => (
+        {productCategories.map((cat, idx) => (
           <button
-            key={cat}
-            className={`wtp-pill ${categoryFilter === cat ? 'wtp-pill--active' : ''}`}
-            onClick={() => setCategoryFilter(categoryFilter === cat ? '' : cat)}
+            key={cat._id || idx}
+            className={`wtp-pill ${categoryFilter === cat._id ? 'wtp-pill--active' : ''}`}
+            onClick={() => setCategoryFilter(categoryFilter === cat._id ? '' : cat._id)}
           >
-            {prettifyCategory(cat)}
+            {cat.name}
           </button>
         ))}
       </div>
@@ -303,14 +338,16 @@ const WallTemplatePage = () => {
 
       ) : (
         <div className="wtp-groups">
-          {Object.entries(groupedTemplates).map(([cat, catTemplates]) => {
-            const color = getCategoryColor(cat, productCategories);
+          {Object.entries(groupedTemplates).map(([catId, catTemplates]) => {
+            const color = getCategoryColor(catId, productCategories);
+            const catObj = productCategories.find(c => c._id === catId);
+            const catName = catObj ? catObj.name : (catTemplates[0]?.category?.name || catId);
             return (
-              <div key={cat}>
+              <div key={catId}>
                 {/* Group Header */}
                 <div className="wtp-group__header">
                   <span className="wtp-group__dot" style={{ background: color }} />
-                  <h2 className="wtp-group__title">{prettifyCategory(cat)}</h2>
+                  <h2 className="wtp-group__title">{prettifyCategory(catName)}</h2>
                   <span className="wtp-group__count">
                     {catTemplates.length} template{catTemplates.length !== 1 ? 's' : ''}
                   </span>
@@ -338,7 +375,7 @@ const WallTemplatePage = () => {
                                 borderColor: color + '30',
                               }}
                             >
-                              {prettifyCategory(cat)}
+                              {prettifyCategory(catName)}
                             </span>
                             {tmpl.isDefault && (
                               <span className="wtp-card__default-badge">
@@ -367,14 +404,14 @@ const WallTemplatePage = () => {
                           <p className="wtp-card__desc">{tmpl.description}</p>
                         )}
 
-                        {/* Bay Spacing row */}
+                        {/* Height row */}
                         <div className="wtp-card__bay-row">
                           <span className="wtp-card__bay-label">
                             <IconRuler />
-                            Bay Spacing
+                            Wall Height
                           </span>
                           <span className="wtp-card__bay-value">
-                            {tmpl.baySpacingMeters}m per bay
+                            {tmpl.heightFeet} ft
                           </span>
                         </div>
 
@@ -391,7 +428,6 @@ const WallTemplatePage = () => {
                               <thead>
                                 <tr>
                                   <th>Product</th>
-                                  <th style={{ textAlign: 'right' }}>Qty / Bay</th>
                                   <th>Unit</th>
                                 </tr>
                               </thead>
@@ -406,7 +442,6 @@ const WallTemplatePage = () => {
                                         {line.productId?.productCode}
                                       </span>
                                     </td>
-                                    <td className="wtp-prod-qty">{line.qtyPerBay}</td>
                                     <td className="wtp-prod-unit">{line.unit}</td>
                                   </tr>
                                 ))}
@@ -430,7 +465,7 @@ const WallTemplatePage = () => {
                               <thead>
                                 <tr>
                                   <th>Raw Material</th>
-                                  <th style={{ textAlign: 'right' }}>Qty / Meter</th>
+                                  <th style={{ textAlign: 'right' }}>Qty / SQFT</th>
                                 </tr>
                               </thead>
                               <tbody>
@@ -485,17 +520,79 @@ const WallTemplatePage = () => {
           <div className="wtp-error-banner">{validationErrors.general}</div>
         )}
 
-        {/* Template Name */}
+        {/* Template Name / Wall Product */}
         <div className="field-group">
-          <label className="field-label field-label--required">Template Name</label>
-          <input
-            type="text"
-            className="field-input"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="e.g. Standard Compound Wall 8ft"
-          />
+          <label className="field-label field-label--required">Template Name / Product</label>
+          <select
+            className={`field-select${validationErrors.name ? ' field-select--error' : ''}`}
+            value={form.productId || ''}
+            onChange={(e) => {
+              const pId = e.target.value;
+              const selectedProd = allProducts.find(p => p._id === pId);
+              if (selectedProd) {
+                const w = selectedProd.dimensions?.width || 0;
+                const h = selectedProd.dimensions?.height || 0;
+                const computedSqft = Number((w * h * 10.7639).toFixed(2));
+                const derivedHeight = Math.round(h / 0.3048) || 6;
+
+                // Recalculate Qty/SQFT for all currently added products
+                const updatedProducts = form.products.map(line => {
+                  if (!line.productId) return line;
+                  const prod = allProducts.find(p => p._id === line.productId);
+                  if (!prod) return line;
+                  const catKey = prod.category?.name
+                    ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
+                    : (typeof prod.category === 'string' ? prod.category : '');
+
+                  const spacingFeet = h / 0.3048;
+                  const bayAreaSqft = spacingFeet * derivedHeight;
+                  const prodW = prod.dimensions?.width || 0.3;
+                  const prodH = prod.dimensions?.height || 1.8;
+                  const productAreaSqft = prodW * prodH * 10.7639;
+
+                  let qtyPerSqft = line.qtyPerSqft;
+                  if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey)) {
+                    qtyPerSqft = Number((1 / (productAreaSqft || 5.81)).toFixed(6));
+                  } else if (['pole', 'column', 'beam', 'top_beam'].includes(catKey)) {
+                    qtyPerSqft = Number((1 / (bayAreaSqft || 36)).toFixed(6));
+                  }
+                  return { ...line, qtyPerSqft };
+                });
+
+                setForm({
+                  ...form,
+                  productId: pId,
+                  name: selectedProd.productName,
+                  productSqft: computedSqft,
+                  heightFeet: derivedHeight,
+                  products: updatedProducts
+                });
+              } else {
+                setForm({
+                  ...form,
+                  productId: '',
+                  name: '',
+                  productSqft: 0
+                });
+              }
+            }}
+          >
+            <option value="">Select Wall Product...</option>
+            {allProducts
+              .filter(p => (p.category?._id || p.category) === form.category)
+              .map((p) => (
+                <option key={p._id} value={p._id}>
+                  [{p.productCode}] {p.productName}
+                </option>
+              ))
+            }
+          </select>
           {validationErrors.name && <span className="field-error">{validationErrors.name}</span>}
+          {form.productId && (
+            <span style={{ fontSize: '11px', color: 'var(--color-success)', marginTop: '4px', display: 'block' }}>
+              ✓ Calculated Area: <strong>{form.productSqft} SQFT</strong> &nbsp;|&nbsp; Derived Height: <strong>{form.heightFeet} ft</strong>
+            </span>
+          )}
         </div>
 
         <div className="form-row">
@@ -508,8 +605,8 @@ const WallTemplatePage = () => {
               onChange={(e) => setForm({ ...form, category: e.target.value })}
             >
               <option value="">Select Category...</option>
-              {productCategories.map((cat) => (
-                <option key={cat} value={cat}>{prettifyCategory(cat)}</option>
+              {productCategories.map((cat, idx) => (
+                <option key={cat._id || idx} value={cat._id}>{cat.name}</option>
               ))}
             </select>
             {validationErrors.category && (
@@ -517,19 +614,43 @@ const WallTemplatePage = () => {
             )}
           </div>
 
-          {/* Bay Spacing */}
+          {/* Wall Height */}
           <div className="field-group">
-            <label className="field-label field-label--required">Bay Spacing (meters)</label>
+            <label className="field-label field-label--required">Wall Height (feet)</label>
             <input
               type="number"
               className="field-input"
-              value={form.baySpacingMeters}
+              value={form.heightFeet}
               min="0.1"
-              step="0.5"
-              onChange={(e) => setForm({ ...form, baySpacingMeters: Number(e.target.value) })}
+              step="1"
+              onChange={(e) => {
+                const newHeight = Number(e.target.value);
+                
+                // Recalculate Qty/SQFT for structural products
+                const updatedProducts = form.products.map(line => {
+                  if (!line.productId) return line;
+                  const prod = allProducts.find(p => p._id === line.productId);
+                  if (!prod) return line;
+                  const catKey = prod.category?.name
+                    ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
+                    : (typeof prod.category === 'string' ? prod.category : '');
+
+                  if (['pole', 'column', 'beam', 'top_beam'].includes(catKey)) {
+                    const parentProd = allProducts.find(p => p._id === form.productId);
+                    const parentH = parentProd?.dimensions?.height || 1.8;
+                    const spacingFeet = parentH / 0.3048;
+                    const bayAreaSqft = spacingFeet * newHeight;
+                    const qtyPerSqft = Number((1 / (bayAreaSqft || 36)).toFixed(6));
+                    return { ...line, qtyPerSqft };
+                  }
+                  return line;
+                });
+
+                setForm({ ...form, heightFeet: newHeight, products: updatedProducts });
+              }}
             />
             <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px', display: 'block' }}>
-              Every {form.baySpacingMeters}m of wall = 1 bay unit
+              Used to compute total wall area in SQFT.
             </span>
           </div>
         </div>
@@ -570,9 +691,9 @@ const WallTemplatePage = () => {
         <div className="wtp-product-lines">
           <div className="wtp-product-lines__header">
             <div>
-              <p className="wtp-product-lines__title">Products Required Per Bay</p>
+              <p className="wtp-product-lines__title">Products Required Per SQFT</p>
               <p className="wtp-product-lines__subtitle">
-                Specify how many pieces of each product are needed per bay unit.
+                Specify how many pieces of each product are needed per square foot of wall area.
               </p>
             </div>
             <button type="button" className="btn btn--secondary btn--sm" onClick={handleAddProductLine}>
@@ -596,7 +717,6 @@ const WallTemplatePage = () => {
               {/* Column headers */}
               <div className="wtp-line-header">
                 <span style={{ flex: 2 }}>Product</span>
-                <span style={{ flex: '0 0 80px' }}>Qty/Bay</span>
                 <span style={{ flex: '0 0 70px' }}>Unit</span>
                 <span style={{ width: '32px' }} />
               </div>
@@ -619,21 +739,6 @@ const WallTemplatePage = () => {
                     </select>
                     {validationErrors[`product_${idx}_id`] && (
                       <span className="field-error">{validationErrors[`product_${idx}_id`]}</span>
-                    )}
-                  </div>
-
-                  {/* Qty */}
-                  <div style={{ flex: '0 0 80px' }}>
-                    <input
-                      type="number"
-                      className={`field-input${validationErrors[`product_${idx}_qty`] ? ' field-input--error' : ''}`}
-                      value={line.qtyPerBay}
-                      min="0.001"
-                      step="1"
-                      onChange={(e) => handleProductLineChange(idx, 'qtyPerBay', Number(e.target.value))}
-                    />
-                    {validationErrors[`product_${idx}_qty`] && (
-                      <span className="field-error">{validationErrors[`product_${idx}_qty`]}</span>
                     )}
                   </div>
 
@@ -669,7 +774,7 @@ const WallTemplatePage = () => {
             <div>
               <p className="wtp-product-lines__title">Site Installation Raw Materials Required</p>
               <p className="wtp-product-lines__subtitle">
-                Select raw materials and quantities needed at client site per meter.
+                Select raw materials and quantities needed at client site per square foot.
               </p>
             </div>
             <button type="button" className="btn btn--secondary btn--sm" onClick={handleAddMaterialLine}>
@@ -687,7 +792,7 @@ const WallTemplatePage = () => {
               {/* Column headers */}
               <div className="wtp-line-header">
                 <span style={{ flex: 2 }}>Raw Material</span>
-                <span style={{ flex: '0 0 80px' }}>Qty / Meter</span>
+                <span style={{ flex: '0 0 80px' }}>Qty / SQFT</span>
                 <span style={{ flex: '0 0 70px' }}>Unit</span>
                 <span style={{ width: '32px' }} />
               </div>
@@ -706,7 +811,7 @@ const WallTemplatePage = () => {
                         <option value="">Select raw material...</option>
                         {rawMaterials.map((m) => (
                           <option key={m._id} value={m._id}>
-                            [{m.materialCode}] {m.materialName} ({m.category})
+                            [{m.materialCode}] {m.materialName} ({m.category?.name || m.category})
                           </option>
                         ))}
                       </select>

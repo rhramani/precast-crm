@@ -64,6 +64,7 @@ const DataTable = ({
   showSearch = true,
   exportable = false,
   filters,
+  getRowClassName,
 }) => {
   // --- States ---
   const [searchValue, setSearchValue] = useState('');
@@ -408,10 +409,11 @@ const DataTable = ({
                 <tr>
                   {columns.map((col) => {
                     const isSorted = sortKey === col.key;
+                    const isActions = col.key === 'actions';
                     return (
                       <th
                         key={col.key}
-                        className={`data-table__th ${col.sortable ? 'data-table__th--sortable' : ''} ${isSorted ? 'data-table__th--sorted' : ''}`}
+                        className={`data-table__th ${col.sortable ? 'data-table__th--sortable' : ''} ${isSorted ? 'data-table__th--sorted' : ''} ${isActions ? 'data-table__th--actions' : ''}`}
                         style={col.width ? { width: col.width } : undefined}
                         onClick={col.sortable ? () => handleSortClick(col.key) : undefined}
                       >
@@ -447,15 +449,24 @@ const DataTable = ({
                     </td>
                   </tr>
                 ) : (
-                  displayData.map((row, rowIdx) => (
-                    <tr key={row._id || rowIdx} className="data-table__row">
-                      {columns.map((col) => (
-                        <td key={col.key} className="data-table__td">
-                          {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+                  displayData.map((row, rowIdx) => {
+                    const rowClass = getRowClassName ? getRowClassName(row) : '';
+                    return (
+                      <tr key={row._id || rowIdx} className={`data-table__row ${rowClass}`}>
+                        {columns.map((col) => {
+                          const isActions = col.key === 'actions';
+                          return (
+                            <td
+                              key={col.key}
+                              className={`data-table__td ${isActions ? 'data-table__td--actions' : ''}`}
+                            >
+                              {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

@@ -36,6 +36,12 @@ const remove = async (req, res) => {
   res.json({ success: true, message: 'Customer deleted successfully' });
 };
 
+const getDistance = async (req, res) => {
+  const { origin, destination } = req.query;
+  const distanceKm = await customerService.getDistanceBetweenAddresses(origin, destination);
+  res.json({ success: true, data: { distanceKm } });
+};
+
 module.exports = {
   list,
   create,
@@ -44,4 +50,5 @@ module.exports = {
   ledger,
   outstanding,
   remove,
+  getDistance,
 };

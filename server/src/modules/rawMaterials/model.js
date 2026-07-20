@@ -18,8 +18,8 @@ const rawMaterialSchema = new mongoose.Schema(
       trim: true,
     },
     category: {
-      type: String,
-      enum: ['cement', 'sand', 'aggregate', 'steel', 'chemical', 'fly_ash', 'stone_dust', 'water', 'other'],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'RawMaterialCategory',
       required: [true, 'Category is required'],
     },
     unit: {
@@ -32,11 +32,6 @@ const rawMaterialSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Quantity cannot be negative'],
     },
-    minimumQuantity: {
-      type: Number,
-      default: 0,
-      min: [0, 'Minimum quantity cannot be negative'],
-    },
     purchaseRate: {
       type: Number,
       default: 0,
@@ -46,6 +41,10 @@ const rawMaterialSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Supplier',
       default: null,
+    },
+    date: {
+      type: Date,
+      default: Date.now,
     },
   },
   { timestamps: true }

@@ -8,10 +8,10 @@ const templateProductSchema = new mongoose.Schema(
       ref: 'Product',
       required: [true, 'Product ID is required'],
     },
-    qtyPerBay: {
+    qtyPerSqft: {
       type: Number,
-      required: [true, 'Quantity per bay is required'],
-      min: [0.001, 'Quantity per bay must be greater than zero'],
+      required: [true, 'Quantity per SQFT is required'],
+      min: [0.0001, 'Quantity per SQFT must be greater than zero'],
     },
     unit: {
       type: String,
@@ -43,7 +43,7 @@ const templateMaterialSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['per_pole', 'per_meter'],
+      enum: ['per_pole', 'per_sqft', 'per_meter'],
       required: [true, 'Allocation type is required'],
       default: 'per_pole',
     },
@@ -68,22 +68,31 @@ const wallCategoryTemplateSchema = new mongoose.Schema(
       required: [true, 'Template name is required'],
       trim: true,
     },
+    productId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      default: null,
+    },
+    productSqft: {
+      type: Number,
+      default: 0,
+    },
     // Dynamic — matches product category values from Product Master (no fixed enum)
     category: {
-      type: String,
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ProductCategory',
       required: [true, 'Wall category is required'],
-      trim: true,
     },
     description: {
       type: String,
       trim: true,
       default: '',
     },
-    // How many meters of wall = 1 "bay" (structural unit)
-    baySpacingMeters: {
+    // Height of the wall in feet
+    heightFeet: {
       type: Number,
-      default: 3,
-      min: [0.1, 'Bay spacing must be at least 0.1 meter'],
+      default: 6,
+      min: [0.1, 'Wall height must be at least 0.1 feet'],
     },
     // List of products required per bay
     products: {

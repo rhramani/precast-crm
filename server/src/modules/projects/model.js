@@ -23,7 +23,7 @@ const projectSchema = new mongoose.Schema(
       default: 'planned',
     },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: true }
 );
 
 module.exports = mongoose.model('Project', projectSchema);

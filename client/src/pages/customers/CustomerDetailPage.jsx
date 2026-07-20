@@ -11,7 +11,6 @@ import {
 } from '../../store/api/customerApi';
 import { useCreatePaymentMutation, useGetPaymentsQuery } from '../../store/api/paymentApi';
 import { useGetProjectsQuery } from '../../store/api/projectApi';
-import { useGetBranchesQuery } from '../../store/api/branchApi';
 import FormDrawer from '../../components/ui/FormDrawer';
 import StatusBadge from '../../components/ui/StatusBadge';
 import PhoneInput from 'react-phone-number-input';
@@ -93,8 +92,7 @@ const CustomerDetailPage = () => {
   /* ── Extra queries ── */
   const { data: paymentsRes, isLoading: paymentsLoading } = useGetPaymentsQuery({ customerId: id });
   const payments = paymentsRes?.data?.payments || [];
-  const { data: branchData } = useGetBranchesQuery({ limit: 100 });
-  const branches = branchData?.data?.branches || [];
+
 
   const handleOpenLogPayment = () => {
     setPaymentForm({
@@ -146,8 +144,8 @@ const CustomerDetailPage = () => {
       mobile: customer?.mobile || '',
       email: customer?.email || '',
       gstNumber: customer?.gstNumber || '',
+      dob: customer?.dob ? new Date(customer.dob).toISOString().split('T')[0] : '',
       personalAddress: customer?.personalAddress || '',
-      siteAddress: customer?.siteAddress || '',
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -161,8 +159,13 @@ const CustomerDetailPage = () => {
     if (!form.mobile?.trim()) errors.mobile = 'Mobile is required';
     if (Object.keys(errors).length > 0) { setValidationErrors(errors); return; }
 
+    const payload = {
+      ...form,
+      dob: form.dob || null,
+    };
+
     try {
-      await updateCustomer({ id, ...form }).unwrap();
+      await updateCustomer({ id, ...payload }).unwrap();
       setDrawerOpen(false);
     } catch (err) {
       setValidationErrors({ general: err?.data?.message || 'Save failed.' });
@@ -232,43 +235,33 @@ const CustomerDetailPage = () => {
 
       {/* ── Stat Cards ── */}
       <div className="cd-stats">
-        <div className="cd-stat-card cd-stat-card--accent">
-          <span className="cd-stat-card__label">Credit Limit</span>
-          <span className="cd-stat-card__value cd-stat-card__value--primary">
-            {creditLimit > 0 ? `₹${creditLimit.toLocaleString('en-IN')}` : 'Unlimited'}
-          </span>
-          {creditLimit > 0 && (
-            <>
-              <div className="cd-credit-bar">
-                <div
-                  className={`cd-credit-bar__fill ${creditBarClass}`}
-                  style={{ width: `${creditUsed}%` }}
-                />
-              </div>
-              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
-                {creditUsed}% used
-              </span>
-            </>
-          )}
-        </div>
-
-        <div className={`cd-stat-card ${outstandingAmt > 0 ? 'cd-stat-card--danger' : 'cd-stat-card--success'}`}>
-          <span className="cd-stat-card__label">Outstanding Balance</span>
-          <span className={`cd-stat-card__value ${outstandingAmt > 0 ? 'cd-stat-card__value--danger' : 'cd-stat-card__value--success'}`}>
-            {`₹${outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-          </span>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
-            {outstandingAmt === 0 ? 'All clear' : 'Pending collection'}
-          </span>
-        </div>
-
         <div className="cd-stat-card cd-stat-card--info">
-          <span className="cd-stat-card__label">Total Invoiced</span>
+          <span className="cd-stat-card__label">Total Payment to Receive</span>
           <span className="cd-stat-card__value" style={{ color: 'var(--color-info)' }}>
             {`₹${totalInvoiced.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
           </span>
           <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
             {`${ledger?.transactions?.length ?? 0} invoice(s)`}
+          </span>
+        </div>
+
+        <div className="cd-stat-card cd-stat-card--success">
+          <span className="cd-stat-card__label">Total Payment Received</span>
+          <span className="cd-stat-card__value cd-stat-card__value--success">
+            {`₹${(outstanding?.totalPaid ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+          </span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+            Received so far
+          </span>
+        </div>
+
+        <div className={`cd-stat-card ${outstandingAmt > 0 ? 'cd-stat-card--danger' : 'cd-stat-card--success'}`}>
+          <span className="cd-stat-card__label">Pending Payment</span>
+          <span className={`cd-stat-card__value ${outstandingAmt > 0 ? 'cd-stat-card__value--danger' : 'cd-stat-card__value--success'}`}>
+            {`₹${outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+          </span>
+          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', fontWeight: '500' }}>
+            {outstandingAmt === 0 ? 'All clear' : 'Pending collection'}
           </span>
         </div>
 
@@ -310,6 +303,7 @@ const CustomerDetailPage = () => {
               <InfoItem label="Mobile" value={customer.mobile} />
               <InfoItem label="Email" value={customer.email} />
               <InfoItem label="GSTIN (GST Number)" value={customer.gstNumber} />
+              <InfoItem label="Date of Birth" value={customer.dob ? new Date(customer.dob).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'} />
               <InfoItem label="Member Since" value={new Date(customer.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} />
             </div>
             <div className="cd-address-container">
@@ -317,12 +311,6 @@ const CustomerDetailPage = () => {
                 <div className="cd-address-card__title">Personal Address</div>
                 <div className={`cd-address-card__content ${!customer.personalAddress ? 'cd-info-item__value--empty' : ''}`}>
                   {customer.personalAddress || '—'}
-                </div>
-              </div>
-              <div className="cd-address-card">
-                <div className="cd-address-card__title">Site Address</div>
-                <div className={`cd-address-card__content ${!customer.siteAddress ? 'cd-info-item__value--empty' : ''}`}>
-                  {customer.siteAddress || '—'}
                 </div>
               </div>
             </div>
@@ -465,20 +453,6 @@ const CustomerDetailPage = () => {
                     ₹{outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
-                {creditLimit > 0 && (
-                  <div className="cd-outstanding-item">
-                    <div className="cd-outstanding-item__label">Credit Limit</div>
-                    <div
-                      className="cd-outstanding-item__value"
-                      style={{ color: creditUsed >= 90 ? 'var(--color-danger)' : 'var(--color-primary)' }}
-                    >
-                      ₹{creditLimit.toLocaleString('en-IN')}
-                      <span style={{ fontSize: 'var(--text-xs)', fontWeight: 'normal', display: 'block', color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                        {creditUsed}% utilized
-                      </span>
-                    </div>
-                  </div>
-                )}
               </div>
 
               {outstandingAmt === 0 ? (
@@ -512,11 +486,6 @@ const CustomerDetailPage = () => {
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
                     <AlertTriangle size={16} /> Outstanding of ₹{outstandingAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })} is pending collection.
                   </span>
-                  {creditLimit > 0 && outstandingAmt > creditLimit && (
-                    <span style={{ display: 'block', marginTop: 4 }}>
-                      <AlertTriangle size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Exceeds credit limit by ₹{(outstandingAmt - creditLimit).toLocaleString('en-IN')}.
-                    </span>
-                  )}
                 </div>
               )}
             </>
@@ -757,15 +726,19 @@ const CustomerDetailPage = () => {
           </div>
 
           <div className="field-group">
-            <label className="field-label">Personal Address</label>
-            <textarea className="field-textarea" value={form.personalAddress} rows={3}
-              onChange={(e) => setForm({ ...form, personalAddress: e.target.value })} />
+            <label className="field-label">Date of Birth</label>
+            <input
+              type="date"
+              className="field-input"
+              value={form.dob}
+              onChange={(e) => setForm({ ...form, dob: e.target.value })}
+            />
           </div>
 
           <div className="field-group">
-            <label className="field-label">Site Address</label>
-            <textarea className="field-textarea" value={form.siteAddress} rows={3}
-              onChange={(e) => setForm({ ...form, siteAddress: e.target.value })} />
+            <label className="field-label">Personal Address</label>
+            <textarea className="field-textarea" value={form.personalAddress} rows={3}
+              onChange={(e) => setForm({ ...form, personalAddress: e.target.value })} />
           </div>
         </FormDrawer>
       )}

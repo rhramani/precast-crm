@@ -31,6 +31,7 @@ const updateSiteSchema = Joi.object({
   endDate:       Joi.date().allow(null),
   siteArea:      Joi.number().min(0),
   status:        Joi.string().valid('planned', 'in_progress', 'completed', 'on_hold'),
+  branchId:      Joi.string().trim().allow('', null),
   wallTemplateId: Joi.string().trim().allow('', null),
   transportRatePerTrip: Joi.number().min(0),
   labourRatePerManDay: Joi.number().min(0),

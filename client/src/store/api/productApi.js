@@ -33,7 +33,7 @@ export const productApi = apiSlice.injectEndpoints({
     }),
 
     // Returns distinct category values that exist in Product Master for this branch
-    getProductCategories: builder.query({
+    getDistinctProductCategories: builder.query({
       query: () => '/products/categories',
       providesTags: ['Product'],
     }),
@@ -47,5 +47,5 @@ export const {
   useUpdateProductMutation,
   useUpdateProductStatusMutation,
   useDeleteProductMutation,
-  useGetProductCategoriesQuery,
+  useGetDistinctProductCategoriesQuery,
 } = productApi;

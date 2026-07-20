@@ -75,9 +75,9 @@ const getCombinedRequirements = async (projectId, branchFilter) => {
 
     let template = null;
     if (site.wallTemplateId) {
-      template = await WallCategoryTemplate.findById(site.wallTemplateId).populate('products.productId');
+      template = await WallCategoryTemplate.findById(site.wallTemplateId).populate({ path: 'products.productId', populate: { path: 'category' } });
     } else {
-      template = await WallCategoryTemplate.findOne({ branchId: site.branchId, isDefault: true }).populate('products.productId');
+      template = await WallCategoryTemplate.findOne({ branchId: site.branchId, isDefault: true }).populate({ path: 'products.productId', populate: { path: 'category' } });
     }
 
     if (!template) continue;
@@ -88,16 +88,18 @@ const getCombinedRequirements = async (projectId, branchFilter) => {
       const prod = pLine.productId;
       if (!prod) continue;
 
-      const cat = prod.category;
+      const catKey = prod.category?.name
+        ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
+        : (typeof prod.category === 'string' ? prod.category : '');
       let quantity = 0;
 
-      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(cat)) {
+      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey)) {
         quantity = wallPanels;
-      } else if (['pole', 'column'].includes(cat)) {
+      } else if (['pole', 'column'].includes(catKey)) {
         quantity = poles;
-      } else if (cat === 'beam') {
+      } else if (catKey === 'beam') {
         quantity = beams;
-      } else if (cat === 'top_beam') {
+      } else if (catKey === 'top_beam') {
         quantity = topBeams;
       }
 

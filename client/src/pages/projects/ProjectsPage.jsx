@@ -103,7 +103,8 @@ const ProjectsPage = () => {
 
     try {
       if (selectedProject) {
-        await updateProject({ id: selectedProject._id, ...form }).unwrap();
+        const { customerId, ...updateData } = form;
+        await updateProject({ id: selectedProject._id, ...updateData }).unwrap();
       } else {
         await createProject(form).unwrap();
       }

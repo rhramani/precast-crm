@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { NavLink } from 'react-router-dom';
 import { selectSidebarOpen, setSidebarOpen } from '../../store/slices/uiSlice';
@@ -58,6 +59,7 @@ const ICON_MAP = {
   'Reports': <BarChart3 className="sidebar__icon-svg" />,
   'Settings': <Settings className="sidebar__icon-svg" />,
   'Wall Templates': <LayoutTemplate className="sidebar__icon-svg" />,
+  'Master': <LayoutTemplate className="sidebar__icon-svg" />,
 };
 
 const getNavIcon = (item) => {
@@ -78,7 +80,8 @@ const getNavIcon = (item) => {
   }
   
   // Localized label prefix matches for icons
-  if (item.label.startsWith('Raw Materials')) return ICON_MAP['Raw Materials'];
+  if (item.label.startsWith('Raw Materials') || item.label === 'RM Categories' || item.label === 'Raw Category') return ICON_MAP['Raw Materials'];
+  if (item.label === 'Master') return ICON_MAP['Master'];
   if (item.label.startsWith('Finished Goods')) return ICON_MAP['InventoryFinishedGoods'];
   if (item.label.startsWith('Customers')) return ICON_MAP['Customers'];
   if (item.label.startsWith('Quotations')) return ICON_MAP['Quotations'];
@@ -118,6 +121,15 @@ const NAV_ITEMS = [
   { label: 'Expenses',      path: '/expenses',      roles: ['branch'] },
   { divider: true, label: 'Analytics',              roles: ['branch'] },
   { label: 'Reports',       path: '/reports',       roles: ['branch'] },
+  { divider: true, label: 'Master Settings',        roles: ['branch'] },
+  {
+    label: 'Master',
+    roles: ['branch'],
+    children: [
+      { label: 'Raw Category', path: '/raw-materials/categories', roles: ['branch'] },
+      { label: 'Product Category', path: '/products/categories', roles: ['branch'] }
+    ]
+  },
   { divider: true, label: 'System',                 roles: ['super_admin'] },
   { label: 'System Settings',path: '/settings/system',roles: ['super_admin'] },
 ];
@@ -127,6 +139,7 @@ const Sidebar = () => {
   const open = useSelector(selectSidebarOpen);
   const role = useSelector(selectCurrentRole);
   const currentBranch = useSelector(selectCurrentBranch);
+  const [expandedMenus, setExpandedMenus] = useState({ Master: true });
 
   // Fetch dynamic branding/logo settings
   const { data: settingsRes } = useGetSettingsQuery();
@@ -201,6 +214,43 @@ const Sidebar = () => {
                 <div key={idx} className="sidebar__section-label">{item.label}</div>
               ) : (
                 <div key={idx} className="sidebar__divider" />
+              );
+            }
+            if (item.children) {
+              const isExpanded = expandedMenus[item.label];
+              return (
+                <div key={item.label} className="sidebar__submenu-group">
+                  <button
+                    type="button"
+                    className="sidebar__item sidebar__item--parent"
+                    onClick={() => setExpandedMenus(prev => ({ ...prev, [item.label]: !prev[item.label] }))}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center' }}
+                  >
+                    <span className="sidebar__item-icon">{getNavIcon(item)}</span>
+                    {open && (
+                      <>
+                        <span className="sidebar__item-label">{item.label}</span>
+                        <span className="sidebar__submenu-arrow" style={{ marginLeft: 'auto', fontSize: '10px', transition: 'transform var(--transition-base)', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                          ▼
+                        </span>
+                      </>
+                    )}
+                  </button>
+                  {isExpanded && item.children.map(child => (
+                    <NavLink
+                      key={child.path}
+                      to={child.path}
+                      className={({ isActive }) =>
+                        `sidebar__item sidebar__item--child ${isActive ? 'sidebar__item--active' : ''}`
+                      }
+                      onClick={handleItemClick}
+                      style={{ paddingLeft: open ? '36px' : '16px' }}
+                    >
+                      <span className="sidebar__item-icon">{getNavIcon(child)}</span>
+                      {open && <span className="sidebar__item-label">{child.label}</span>}
+                    </NavLink>
+                  ))}
+                </div>
               );
             }
             return (

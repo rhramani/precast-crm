@@ -1,5 +1,6 @@
 const Branch = require('./model');
 const User = require('../auth/model');
+const initializeBranchCategories = require('../../utils/initializeBranchCategories');
 
 const buildMeta = (page, limit, total) => ({ page, limit, total, pages: Math.ceil(total / limit) });
 
@@ -11,6 +12,7 @@ const listBranches = async ({ page = 1, limit = 10, search, sortBy = 'createdAt'
     filter.$or = [
       { branchName: { $regex: search, $options: 'i' } },
       { branchCode: { $regex: search, $options: 'i' } },
+      { address: { $regex: search, $options: 'i' } },
     ];
   }
 
@@ -101,6 +103,8 @@ const createBranch = async (data) => {
     gstNumber:     data.gstNumber,
     status:        'active',
   });
+
+  await initializeBranchCategories(u._id);
 
   return {
     _id:           u._id,

@@ -21,6 +21,12 @@ import ActionsDropdown from '../../components/ui/ActionsDropdown';
 import PhoneInput from 'react-phone-number-input';
 import 'react-phone-number-input/style.css';
 
+const prettifyCategory = (cat) => {
+  if (!cat) return '';
+  if (typeof cat === 'object') return cat.name || '';
+  return cat.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
+
 const ProjectSitesPage = () => {
   const { id: projectId } = useParams();
   const navigate = useNavigate();
@@ -381,7 +387,9 @@ const ProjectSitesPage = () => {
           >
             <option value="">Select Template...</option>
             {templatesList.map((t) => (
-              <option key={t._id} value={t._id}>{t.name} ({t.category.replace('_', ' ')})</option>
+              <option key={t._id} value={t._id}>
+                {t.name} {t.category ? `(${prettifyCategory(t.category)})` : ''}
+              </option>
             ))}
           </select>
         </div>

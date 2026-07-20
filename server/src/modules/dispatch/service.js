@@ -12,13 +12,16 @@ const buildMeta = (page, limit, total) => ({
 });
 
 // 1. List Dispatches
-const listDispatches = async (branchFilter, { page = 1, limit = 10, search, status }) => {
+const listDispatches = async (branchFilter, { page = 1, limit = 10, search, status, startDate, endDate }) => {
   const filter = { ...branchFilter };
   if (search) {
     filter.dispatchNumber = { $regex: search, $options: 'i' };
   }
   if (status) {
     filter.status = status;
+  }
+  if (startDate) {
+    filter.createdAt = endDate ? { $gte: new Date(startDate), $lte: new Date(endDate) } : { $gte: new Date(startDate) };
   }
 
   const skip = (page - 1) * limit;

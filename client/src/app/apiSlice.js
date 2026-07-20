@@ -121,6 +121,8 @@ export const apiSlice = createApi({
     'Notification',
     'Settings',
     'WallTemplate',
+    'RawMaterialCategory',
+    'ProductCategory',
   ],
   endpoints: () => ({}),
 });

@@ -22,7 +22,7 @@ const listProducts = async (branchFilter, { page = 1, limit = 10, search, catego
   const skip = (page - 1) * limit;
 
   const [products, total] = await Promise.all([
-    Product.find(filter).sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
+    Product.find(filter).populate('category').sort({ createdAt: -1 }).skip(skip).limit(Number(limit)),
     Product.countDocuments(filter),
   ]);
 
@@ -102,7 +102,7 @@ const deleteProduct = async (id, branchFilter) => {
 };
 
 const getProduct = async (id, branchFilter) => {
-  const product = await Product.findOne({ _id: id, ...branchFilter });
+  const product = await Product.findOne({ _id: id, ...branchFilter }).populate('category');
   if (!product) {
     const err = new Error('Product not found');
     err.statusCode = 404;

@@ -232,15 +232,17 @@ async function runTests() {
   // 4. RAW MATERIALS INVENTORY
   logHeader('Test 4: Raw Materials CRUD & Ledger Operations');
 
+  const getRmCats = await request('/raw-material-categories', { token: branchUserToken });
+  const rmCatId = getRmCats.data.categories[0]?._id;
+
   const createMaterialRes = await request('/raw-materials', {
     method: 'POST',
     token: branchUserToken,
     body: {
       materialCode: 'CEM-53',
       materialName: 'UltraTech Cement 53 Grade',
-      category: 'cement',
+      category: rmCatId,
       unit: 'bags',
-      minimumQuantity: 20,
       purchaseRate: 450,
     },
   });
@@ -277,13 +279,16 @@ async function runTests() {
   // 5. PRODUCTS & BOM
   logHeader('Test 5: Products & BOM Configuration');
 
+  const getProdCats = await request('/product-categories', { token: branchUserToken });
+  const prodCatId = getProdCats.data.categories[0]?._id;
+
   const createProductRes = await request('/products', {
     method: 'POST',
     token: branchUserToken,
     body: {
       productCode: 'PAN-06',
       productName: 'Precast compound wall panel 6ft',
-      category: 'compound_wall',
+      category: prodCatId,
       unit: 'nos',
       dimensions: { width: 1, height: 6, length: 1, thickness: 0.1 },
       weight: 120,

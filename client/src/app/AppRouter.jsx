@@ -20,8 +20,10 @@ import AuditLogsPage from '../pages/system/AuditLogsPage';
 import SettingsLayout from '../components/layout/SettingsLayout';
 import NotificationsPage from '../pages/notifications/NotificationsPage';
 import RawMaterialsPage from '../pages/rawMaterials/RawMaterialsPage';
+import RawMaterialCategoriesPage from '../pages/rawMaterials/RawMaterialCategoriesPage';
 import MaterialLedgerPage from '../pages/rawMaterials/MaterialLedgerPage';
 import ProductsPage from '../pages/products/ProductsPage';
+import ProductCategoriesPage from '../pages/products/ProductCategoriesPage';
 import BomPage from '../pages/products/BomPage';
 import WallTemplatePage from '../pages/products/WallTemplatePage';
 import CapacityCalculatorPage from '../pages/production/CapacityCalculatorPage';
@@ -124,6 +126,9 @@ const AppRouter = () => (
     <Route path="/raw-materials"
       element={<ProtectedRoute excludeRole="super_admin"><RawMaterialsPage /></ProtectedRoute>}
     />
+    <Route path="/raw-materials/categories"
+      element={<ProtectedRoute excludeRole="super_admin"><RawMaterialCategoriesPage /></ProtectedRoute>}
+    />
     <Route path="/raw-materials/:id/ledger"
       element={<ProtectedRoute excludeRole="super_admin"><MaterialLedgerPage /></ProtectedRoute>}
     />
@@ -131,6 +136,9 @@ const AppRouter = () => (
     {/* ── Products & BOM ── */}
     <Route path="/products"
       element={<ProtectedRoute excludeRole="super_admin"><ProductsPage /></ProtectedRoute>}
+    />
+    <Route path="/products/categories"
+      element={<ProtectedRoute excludeRole="super_admin"><ProductCategoriesPage /></ProtectedRoute>}
     />
     <Route path="/products/:id/bom"
       element={<ProtectedRoute excludeRole="super_admin"><BomPage /></ProtectedRoute>}

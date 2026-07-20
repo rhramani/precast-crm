@@ -9,8 +9,14 @@ const listTemplates = async (branchFilter, { category, isActive } = {}) => {
   if (isActive !== undefined) filter.isActive = isActive === 'true' || isActive === true;
 
   const templates = await WallCategoryTemplate.find(filter)
+    .populate('category')
+    .populate('productId', 'productName productCode category unit dimensions weight')
     .populate('products.productId', 'productName productCode category unit')
-    .populate('installationMaterials.materialId', 'materialName materialCode category unit')
+    .populate({
+      path: 'installationMaterials.materialId',
+      select: 'materialName materialCode category unit',
+      populate: { path: 'category', select: 'name' }
+    })
     .populate('createdBy', 'name email')
     .sort({ category: 1, isDefault: -1, createdAt: -1 });
 
@@ -22,8 +28,14 @@ const listTemplates = async (branchFilter, { category, isActive } = {}) => {
 // ─────────────────────────────────────────────
 const getTemplate = async (id, branchFilter) => {
   const template = await WallCategoryTemplate.findOne({ _id: id, ...branchFilter })
+    .populate('category')
+    .populate('productId', 'productName productCode category unit dimensions weight')
     .populate('products.productId', 'productName productCode category unit dimensions weight')
-    .populate('installationMaterials.materialId', 'materialName materialCode category unit')
+    .populate({
+      path: 'installationMaterials.materialId',
+      select: 'materialName materialCode category unit',
+      populate: { path: 'category', select: 'name' }
+    })
     .populate('createdBy', 'name email');
 
   if (!template) {
@@ -53,8 +65,14 @@ const createTemplate = async (branchId, userId, data) => {
   });
 
   return template.populate([
+    { path: 'category' },
+    { path: 'productId', select: 'productName productCode category unit dimensions weight' },
     { path: 'products.productId', select: 'productName productCode category unit' },
-    { path: 'installationMaterials.materialId', select: 'materialName materialCode category unit' }
+    {
+      path: 'installationMaterials.materialId',
+      select: 'materialName materialCode category unit',
+      populate: { path: 'category', select: 'name' }
+    }
   ]);
 };
 
@@ -81,8 +99,14 @@ const updateTemplate = async (id, branchFilter, data) => {
   await template.save();
 
   return template.populate([
+    { path: 'category' },
+    { path: 'productId', select: 'productName productCode category unit dimensions weight' },
     { path: 'products.productId', select: 'productName productCode category unit' },
-    { path: 'installationMaterials.materialId', select: 'materialName materialCode category unit' }
+    {
+      path: 'installationMaterials.materialId',
+      select: 'materialName materialCode category unit',
+      populate: { path: 'category', select: 'name' }
+    }
   ]);
 };
 
@@ -128,6 +152,7 @@ const setDefault = async (id, branchFilter) => {
 // ─────────────────────────────────────────────
 const calculateFromTemplate = async (id, branchFilter, wallLengthMeters) => {
   const template = await WallCategoryTemplate.findOne({ _id: id, ...branchFilter })
+    .populate('category')
     .populate('products.productId', 'productName productCode category unit');
 
   if (!template) {
@@ -137,7 +162,7 @@ const calculateFromTemplate = async (id, branchFilter, wallLengthMeters) => {
   }
 
   const length = Number(wallLengthMeters);
-  const bays = Math.ceil(length / template.baySpacingMeters) || 1;
+  const wallAreaSqft = (length / 0.3048) * (template.heightFeet || 6);
 
   const productBreakdown = template.products.map((line) => ({
     productId: line.productId._id,
@@ -145,8 +170,8 @@ const calculateFromTemplate = async (id, branchFilter, wallLengthMeters) => {
     productCode: line.productId.productCode,
     category: line.productId.category,
     unit: line.unit,
-    qtyPerBay: line.qtyPerBay,
-    totalQty: Math.ceil(line.qtyPerBay * bays),
+    qtyPerSqft: line.qtyPerSqft,
+    totalQty: Math.ceil(line.qtyPerSqft * wallAreaSqft),
     note: line.note,
   }));
 
@@ -155,10 +180,12 @@ const calculateFromTemplate = async (id, branchFilter, wallLengthMeters) => {
       id: template._id,
       name: template.name,
       category: template.category,
-      baySpacingMeters: template.baySpacingMeters,
+      heightFeet: template.heightFeet,
+      productId: template.productId,
+      productSqft: template.productSqft,
     },
     wallLengthMeters: length,
-    bays,
+    wallAreaSqft,
     productBreakdown,
   };
 };

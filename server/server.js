@@ -3,11 +3,15 @@ const http = require('http');
 const app = require('./src/app');
 const connectDB = require('./src/config/db');
 const { initSocket } = require('./src/config/socket');
+const runCategoryMigration = require('./src/modules/rawMaterialCategories/migration');
+const runProductCategoryMigration = require('./src/modules/productCategories/migration');
 
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   await connectDB();
+  await runCategoryMigration();
+  await runProductCategoryMigration();
   const server = http.createServer(app);
 
   // Initialize Socket.io

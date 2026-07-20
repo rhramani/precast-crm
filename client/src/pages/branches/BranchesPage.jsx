@@ -222,6 +222,24 @@ const BranchesPage = () => {
     { key: 'mobileNumber', label: 'Mobile' },
     { key: 'gstNumber', label: 'GSTIN' },
     {
+      key: 'address',
+      label: 'Address',
+      render: (val) => (
+        <span
+          style={{
+            display: 'inline-block',
+            maxWidth: '180px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+          title={val || ''}
+        >
+          {val || '—'}
+        </span>
+      ),
+    },
+    {
       key: 'status',
       label: 'Status',
       render: (val, row) => (

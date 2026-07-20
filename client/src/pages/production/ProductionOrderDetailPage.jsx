@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import {
   useGetProductionOrderQuery,
   useUpdateProductionOrderStatusMutation,
   useCompleteProductionOrderMutation,
+  useUpdateProductionOrderMutation,
 } from '../../store/api/productionApi';
+import { useGetProductsQuery } from '../../store/api/productApi';
+import { useGetBranchesQuery } from '../../store/api/branchApi';
+import { selectCurrentRole, selectCurrentBranchId } from '../../store/slices/authSlice';
 import StatusBadge from '../../components/ui/StatusBadge';
 import FormDrawer from '../../components/ui/FormDrawer';
 
@@ -12,13 +17,23 @@ const ProductionOrderDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const userRole = useSelector(selectCurrentRole);
+  const userBranchId = useSelector(selectCurrentBranchId);
+
   // Queries
   const { data: orderRes, isLoading, error } = useGetProductionOrderQuery(id);
   const order = orderRes?.data?.order;
 
+  const { data: productsRes } = useGetProductsQuery({ limit: 100 });
+  const products = productsRes?.data?.products || [];
+
+  const { data: branchData } = useGetBranchesQuery({ limit: 100 });
+  const branches = branchData?.data?.branches || [];
+
   // Mutations
   const [updateStatus, { isLoading: isUpdatingStatus }] = useUpdateProductionOrderStatusMutation();
   const [completeOrder, { isLoading: isCompleting }] = useCompleteProductionOrderMutation();
+  const [updateOrder, { isLoading: isUpdatingOrder }] = useUpdateProductionOrderMutation();
 
   // Local state
   const [completeDrawerOpen, setCompleteDrawerOpen] = useState(false);
@@ -26,6 +41,15 @@ const ProductionOrderDetailPage = () => {
     producedQuantity: '',
     damagedQuantity: '0',
     remarks: '',
+  });
+  const [editDrawerOpen, setEditDrawerOpen] = useState(false);
+  const [editForm, setEditForm] = useState({
+    productId: '',
+    plannedQuantity: '',
+    orderNumber: '',
+    startDate: '',
+    branchId: '',
+    status: '',
   });
   const [validationErrors, setValidationErrors] = useState({});
 
@@ -74,11 +98,52 @@ const ProductionOrderDetailPage = () => {
   const handleOpenComplete = () => {
     setCompleteForm({
       producedQuantity: order.plannedQuantity,
-      damagedQuantity: '0',
-      remarks: '',
+      damagedQuantity: order.damagedQuantity || '0',
+      remarks: order.remarks || '',
     });
     setValidationErrors({});
     setCompleteDrawerOpen(true);
+  };
+
+  const handleOpenEdit = () => {
+    setEditForm({
+      productId: order.productId?._id || order.productId || '',
+      plannedQuantity: order.plannedQuantity || '',
+      orderNumber: order.orderNumber || '',
+      startDate: order.startDate ? new Date(order.startDate).toISOString().split('T')[0] : '',
+      branchId: order.branchId?._id || order.branchId || '',
+      status: order.status || '',
+    });
+    setValidationErrors({});
+    setEditDrawerOpen(true);
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    setValidationErrors({});
+    const errors = {};
+    if (!editForm.productId) errors.productId = 'Product is required';
+    if (!editForm.plannedQuantity || Number(editForm.plannedQuantity) <= 0) errors.plannedQuantity = 'Quantity must be greater than 0';
+    if (userRole === 'super_admin' && !editForm.branchId) errors.branchId = 'Branch assignment is required';
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      return;
+    }
+
+    try {
+      await updateOrder({
+        id: order._id,
+        productId: editForm.productId,
+        plannedQuantity: Number(editForm.plannedQuantity),
+        orderNumber: editForm.orderNumber || undefined,
+        startDate: editForm.startDate || null,
+        branchId: editForm.branchId || undefined,
+      }).unwrap();
+      setEditDrawerOpen(false);
+    } catch (err) {
+      setValidationErrors({ general: err?.data?.message || 'Failed to update production order' });
+    }
   };
 
   const handleCompleteSubmit = async (e) => {
@@ -153,6 +218,14 @@ const ProductionOrderDetailPage = () => {
             ✅ Complete Order
           </button>
         )}
+
+        <button
+          onClick={handleOpenEdit}
+          className="btn btn--secondary"
+          style={{ padding: '8px 16px', fontWeight: 'var(--font-medium)', display: 'flex', alignItems: 'center', gap: '6px' }}
+        >
+          ✏️ Edit Details
+        </button>
 
         <button
           onClick={() => handleStatusTransition('cancelled')}
@@ -282,6 +355,35 @@ const ProductionOrderDetailPage = () => {
                 </span>
                 <strong style={{ color: 'var(--color-text-primary)' }}>{order.producedQuantity?.toLocaleString() || 0} {order.productId?.unit || 'units'}</strong>
               </div>
+              {order.status === 'completed' && (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(24, 38, 80, 0.08)' }}>
+                    <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      ⚠️ <span>Damaged Qty:</span>
+                    </span>
+                    <strong style={{ color: 'var(--color-danger)' }}>{order.damagedQuantity?.toLocaleString() || 0} {order.productId?.unit || 'units'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(24, 38, 80, 0.08)' }}>
+                    <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      ⭐ <span>Net Good Qty:</span>
+                    </span>
+                    <strong style={{ color: 'var(--color-success)' }}>{((order.producedQuantity || 0) - (order.damagedQuantity || 0)).toLocaleString()} {order.productId?.unit || 'units'}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(24, 38, 80, 0.08)' }}>
+                    <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      💸 <span>Damaged Loss:</span>
+                    </span>
+                    <div style={{ textAlign: 'right' }}>
+                      <strong style={{ color: 'var(--color-danger)' }}>
+                        ₹{((order.damagedQuantity || 0) * (order.bomId?.calculatedCost || 0)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </strong>
+                      <span style={{ fontSize: '10px', fontWeight: 'normal', color: 'var(--color-text-secondary)', display: 'block', marginTop: '2px' }}>
+                        (BOM cost: ₹{(order.bomId?.calculatedCost || 0).toFixed(2)})
+                      </span>
+                    </div>
+                  </div>
+                </>
+              )}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid rgba(24, 38, 80, 0.08)' }}>
                 <span style={{ color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   📅 <span>Start Date:</span>
@@ -442,6 +544,105 @@ const ProductionOrderDetailPage = () => {
             placeholder="e.g. Shift 1 finished with 2% scrap slabs"
             rows={4}
           />
+        </div>
+      </FormDrawer>
+
+      {/* Edit Order Drawer */}
+      <FormDrawer
+        open={editDrawerOpen}
+        onClose={() => setEditDrawerOpen(false)}
+        title="Edit Production Order"
+        footer={
+          <>
+            <button onClick={() => setEditDrawerOpen(false)} className="btn btn--secondary">Cancel</button>
+            <button onClick={handleEditSubmit} className="btn btn--primary" disabled={isUpdatingOrder}>Save Changes</button>
+          </>
+        }
+      >
+        {validationErrors.general && <div className="field-error">{validationErrors.general}</div>}
+
+        <div className="field-group">
+          <label className="field-label field-label--required">Product</label>
+          <select
+            className="field-select"
+            value={editForm.productId}
+            onChange={(e) => setEditForm({ ...editForm, productId: e.target.value })}
+            disabled={editForm.status !== 'draft'}
+          >
+            <option value="">Choose Product...</option>
+            {products
+              .filter((p) => p.status === 'active' || p._id === editForm.productId)
+              .map((p) => (
+                <option key={p._id} value={p._id}>
+                  {p.productName} ({p.productCode})
+                </option>
+              ))}
+          </select>
+          {editForm.status !== 'draft' && (
+            <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
+              Product cannot be changed after submitting for production.
+            </span>
+          )}
+          {validationErrors.productId && <span className="field-error">{validationErrors.productId}</span>}
+        </div>
+
+        <div className="form-row">
+          <div className="field-group">
+            <label className="field-label field-label--required">Planned Quantity</label>
+            <input
+              type="number"
+              className="field-input"
+              value={editForm.plannedQuantity}
+              onChange={(e) => setEditForm({ ...editForm, plannedQuantity: e.target.value })}
+              placeholder="e.g. 100"
+            />
+            {validationErrors.plannedQuantity && <span className="field-error">{validationErrors.plannedQuantity}</span>}
+          </div>
+          <div className="field-group">
+            <label className="field-label">Order Number</label>
+            <input
+              type="text"
+              className="field-input"
+              value={editForm.orderNumber}
+              onChange={(e) => setEditForm({ ...editForm, orderNumber: e.target.value })}
+              placeholder="e.g. PRD-12345"
+            />
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="field-group">
+            <label className="field-label">Target Start Date</label>
+            <input
+              type="date"
+              className="field-input"
+              value={editForm.startDate}
+              onChange={(e) => setEditForm({ ...editForm, startDate: e.target.value })}
+            />
+          </div>
+
+          {userRole === 'super_admin' && (
+            <div className="field-group">
+              <label className="field-label field-label--required">Branch Assignment</label>
+              <select
+                className="field-select"
+                value={editForm.branchId}
+                onChange={(e) => setEditForm({ ...editForm, branchId: e.target.value })}
+                disabled={editForm.status !== 'draft'}
+              >
+                <option value="">Select Branch...</option>
+                {branches.map((b) => (
+                  <option key={b._id} value={b._id}>{b.branchName}</option>
+                ))}
+              </select>
+              {editForm.status !== 'draft' && (
+                <span style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '4px', display: 'block' }}>
+                  Branch cannot be changed after submitting for production.
+                </span>
+              )}
+              {validationErrors.branchId && <span className="field-error">{validationErrors.branchId}</span>}
+            </div>
+          )}
         </div>
       </FormDrawer>
     </div>

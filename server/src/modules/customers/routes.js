@@ -7,6 +7,7 @@ const { createCustomerSchema, updateCustomerSchema, validate } = require('./vali
 router.use(protect);
 
 router.get('/',                 controller.list);
+router.get('/distance',         controller.getDistance);
 router.post('/',                validate(createCustomerSchema), controller.create);
 router.get('/:id',              controller.getOne);
 router.put('/:id',              validate(updateCustomerSchema), controller.update);

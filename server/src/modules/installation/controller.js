@@ -1,8 +1,8 @@
 const installationService = require('./service');
 
 const list = async (req, res) => {
-  const { page, limit, search, status } = req.query;
-  const result = await installationService.listInstallations(req.branchFilter, { page, limit, search, status });
+  const { page, limit, search, status, startDate, endDate } = req.query;
+  const result = await installationService.listInstallations(req.branchFilter, { page, limit, search, status, startDate, endDate });
   res.json({ success: true, data: { installations: result.installations }, meta: result.meta });
 };
 

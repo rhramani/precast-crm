@@ -12,6 +12,7 @@ import {
   useGetLowStockQuery,
   useDeleteRawMaterialMutation,
 } from '../../store/api/rawMaterialApi';
+import { useGetRawMaterialCategoriesQuery } from '../../store/api/rawMaterialCategoryApi';
 import { useGetBranchesQuery } from '../../store/api/branchApi';
 import { useGetSuppliersQuery } from '../../store/api/purchaseApi';
 import { useGetProjectsQuery } from '../../store/api/projectApi';
@@ -22,18 +23,6 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ActionsDropdown from '../../components/ui/ActionsDropdown';
 import './RawMaterials.css';
-
-const CATEGORY_MAP = {
-  cement: 'Cement',
-  sand: 'Sand',
-  aggregate: 'Aggregate',
-  steel: 'Steel',
-  chemical: 'Chemical',
-  fly_ash: 'Fly Ash',
-  stone_dust: 'Stone Dust',
-  water: 'Water',
-  other: 'Other',
-};
 
 const RawMaterialsPage = () => {
   const navigate = useNavigate();
@@ -58,6 +47,8 @@ const RawMaterialsPage = () => {
   });
 
   const { data: lowStockData } = useGetLowStockQuery();
+  const { data: categoryRes } = useGetRawMaterialCategoriesQuery({ limit: 1000 });
+  const categories = categoryRes?.data?.categories || [];
   const { data: branchData } = useGetBranchesQuery({ limit: 100 });
   const branches = branchData?.data?.branches || [];
   const { data: suppliersRes } = useGetSuppliersQuery({ limit: 1000, status: 'active' });
@@ -86,13 +77,13 @@ const RawMaterialsPage = () => {
   const [materialForm, setMaterialForm] = useState({
     materialCode: '',
     materialName: '',
-    category: 'cement',
+    category: '',
     unit: 'kg',
-    minimumQuantity: 0,
     purchaseRate: 0,
     currentQuantity: 0,
     branchId: '',
     supplierId: '',
+    date: new Date().toISOString().split('T')[0],
   });
 
   const [opDrawerOpen, setOpDrawerOpen] = useState(false);
@@ -126,13 +117,13 @@ const RawMaterialsPage = () => {
     setMaterialForm({
       materialCode: '',
       materialName: '',
-      category: 'cement',
+      category: categories[0]?._id || '',
       unit: 'kg',
-      minimumQuantity: 0,
       purchaseRate: 0,
       currentQuantity: 0,
       branchId: userRole === 'super_admin' ? '' : userBranchId || '',
       supplierId: '',
+      date: new Date().toISOString().split('T')[0],
     });
     setValidationErrors({});
     setMaterialDrawerOpen(true);
@@ -143,12 +134,12 @@ const RawMaterialsPage = () => {
     setMaterialForm({
       materialCode: material.materialCode || '',
       materialName: material.materialName || '',
-      category: material.category || 'cement',
+      category: material.category?._id || material.category || '',
       unit: material.unit || 'kg',
-      minimumQuantity: material.minimumQuantity || 0,
       purchaseRate: material.purchaseRate || 0,
       branchId: material.branchId || '',
       supplierId: material.supplierId?._id || material.supplierId || '',
+      date: material.date ? new Date(material.date).toISOString().split('T')[0] : '',
     });
     setValidationErrors({});
     setMaterialDrawerOpen(true);
@@ -333,22 +324,22 @@ const RawMaterialsPage = () => {
   const columns = [
     { key: 'materialCode', label: 'Code', sortable: true },
     { key: 'materialName', label: 'Material Name', sortable: true },
-    { key: 'category', label: 'Category', render: (val) => CATEGORY_MAP[val] || val },
+    { key: 'category', label: 'Category', render: (val) => val?.name || val || '—' },
     { key: 'supplierId', label: 'Preferred Supplier', render: (val) => val?.supplierName || '—' },
     {
       key: 'currentQuantity',
       label: 'Current Stock Quantity',
       render: (val, row) => {
-        const isLow = val <= row.minimumQuantity;
+        const isLow = val <= 0;
         return (
           <span className={isLow ? 'stock-warning-text' : ''}>
             <strong>{val}</strong> {row.unit}
-            {isLow && <span className="stock-alert-dot" title="Low Stock!" />}
+            {isLow && <span className="stock-alert-dot" title="Out of Stock!" />}
           </span>
         );
       },
     },
-    { key: 'minimumQuantity', label: 'Minimum Stock Level', render: (val, row) => `${val} ${row.unit}` },
+    { key: 'date', label: 'Registration Date', render: (val) => val ? new Date(val).toLocaleDateString('en-IN') : '—' },
     { key: 'purchaseRate', label: 'Purchase Rate (₹)', render: (val) => `₹${val.toFixed(2)}` },
     {
       key: 'actions',
@@ -375,7 +366,7 @@ const RawMaterialsPage = () => {
         <div className="low-stock-banner" role="alert">
           <span className="low-stock-banner__icon">⚠️</span>
           <div className="low-stock-banner__body">
-            <strong>Low Stock Alert!</strong> {lowStockCount} raw material(s) have reached or crossed their minimum limits.
+            <strong>Out of Stock Alert!</strong> {lowStockCount} raw material(s) are currently out of stock.
           </div>
         </div>
       )}
@@ -404,8 +395,8 @@ const RawMaterialsPage = () => {
               }}
             >
               <option value="">All Categories</option>
-              {Object.entries(CATEGORY_MAP).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>{cat.name}</option>
               ))}
             </select>
           </div>
@@ -454,8 +445,9 @@ const RawMaterialsPage = () => {
               value={materialForm.category}
               onChange={(e) => setMaterialForm({ ...materialForm, category: e.target.value })}
             >
-              {Object.entries(CATEGORY_MAP).map(([k, v]) => (
-                <option key={k} value={k}>{v}</option>
+              <option value="">Select Category...</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>{cat.name}</option>
               ))}
             </select>
           </div>
@@ -474,12 +466,12 @@ const RawMaterialsPage = () => {
 
         <div className="form-row">
           <div className="field-group">
-            <label className="field-label">Minimum Stock Level</label>
+            <label className="field-label">Registration Date</label>
             <input
-              type="number"
+              type="date"
               className="field-input"
-              value={materialForm.minimumQuantity}
-              onChange={(e) => setMaterialForm({ ...materialForm, minimumQuantity: Number(e.target.value) })}
+              value={materialForm.date}
+              onChange={(e) => setMaterialForm({ ...materialForm, date: e.target.value })}
             />
           </div>
           <div className="field-group">

@@ -47,6 +47,15 @@ export const productionApi = apiSlice.injectEndpoints({
         body,
       }),
     }),
+
+    updateProductionOrder: builder.mutation({
+      query: ({ id, ...body }) => ({
+        url: `/production/${id}`,
+        method: 'PUT',
+        body,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Production', id }, 'Production'],
+    }),
   }),
 });
 
@@ -57,4 +66,5 @@ export const {
   useUpdateProductionOrderStatusMutation,
   useCompleteProductionOrderMutation,
   useCalculateCapacityMutation,
+  useUpdateProductionOrderMutation,
 } = productionApi;

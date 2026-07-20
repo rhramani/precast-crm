@@ -5,6 +5,7 @@ import {
   useCreateCustomerMutation,
   useUpdateCustomerMutation,
   useDeleteCustomerMutation,
+  useGetDistanceQuery,
 } from '../../store/api/customerApi';
 import DataTable from '../../components/ui/DataTable';
 import FormDrawer from '../../components/ui/FormDrawer';
@@ -22,6 +23,8 @@ const CustomersPage = () => {
   const [statusFilter, setStatusFilter] = useState('');
   const [sortBy, setSortBy] = useState('createdAt');
   const [sortOrder, setSortOrder] = useState('desc');
+
+
 
   // Queries
   const { data, isLoading } = useGetCustomersQuery({
@@ -47,11 +50,8 @@ const CustomersPage = () => {
     mobile: '',
     email: '',
     gstNumber: '',
-    city: '',
-    state: '',
-    country: '',
+    dob: '',
     personalAddress: '',
-    siteAddress: '',
   });
 
   const [validationErrors, setValidationErrors] = useState({});
@@ -73,11 +73,8 @@ const CustomersPage = () => {
       mobile: '',
       email: '',
       gstNumber: '',
-      city: '',
-      state: '',
-      country: '',
+      dob: '',
       personalAddress: '',
-      siteAddress: '',
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -90,11 +87,8 @@ const CustomersPage = () => {
       mobile: customer.mobile || '',
       email: customer.email || '',
       gstNumber: customer.gstNumber || '',
-      city: customer.city || '',
-      state: customer.state || '',
-      country: customer.country || '',
+      dob: customer.dob ? new Date(customer.dob).toISOString().split('T')[0] : '',
       personalAddress: customer.personalAddress || '',
-      siteAddress: customer.siteAddress || '',
     });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -122,11 +116,16 @@ const CustomersPage = () => {
       return;
     }
 
+    const payload = {
+      ...form,
+      dob: form.dob || null,
+    };
+
     try {
       if (selectedCustomer) {
-        await updateCustomer({ id: selectedCustomer._id, ...form }).unwrap();
+        await updateCustomer({ id: selectedCustomer._id, ...payload }).unwrap();
       } else {
-        await createCustomer(form).unwrap();
+        await createCustomer(payload).unwrap();
       }
       setDrawerOpen(false);
     } catch (err) {
@@ -156,10 +155,17 @@ const CustomersPage = () => {
       key: 'customerName',
       label: 'Customer',
       sortable: true,
-      render: (val) => (
+      render: (val, row) => (
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <AvatarInitials name={val || '?'} />
-          <span>{val}</span>
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span>{val}</span>
+            {row.hasPendingPayment && (
+              <span className="badge badge--danger" style={{ fontSize: '10px', marginTop: '2px', display: 'inline-flex', alignItems: 'center', width: 'fit-content' }}>
+                ⚠️ Pending: ₹{row.outstandingAmount?.toLocaleString('en-IN')}
+              </span>
+            )}
+          </div>
         </div>
       ),
     },
@@ -167,22 +173,57 @@ const CustomersPage = () => {
     { key: 'email', label: 'Email' },
     { key: 'gstNumber', label: 'GSTIN' },
     {
-      key: 'state',
-      label: 'Location',
-      render: (_, row) => {
-        const parts = [row.city, row.state, row.country].filter(Boolean);
-        return parts.length > 0 ? parts.join(', ') : '—';
-      }
+      key: 'dob',
+      label: 'DOB',
+      render: (val) => val ? new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
+    },
+
+
+    {
+      key: 'totalInvoiced',
+      label: 'Total Billed',
+      render: (val) => (
+        <span style={{ fontWeight: '600' }}>
+          ₹{(val ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </span>
+      )
+    },
+    {
+      key: 'outstandingAmount',
+      label: 'Pending Payment',
+      render: (val) => (
+        <strong style={{ color: val > 0 ? 'var(--color-danger)' : 'var(--color-success)' }}>
+          ₹{(val ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+        </strong>
+      )
     },
     {
       key: 'personalAddress',
       label: 'Personal Address',
-      render: (val) => (val && val.length > 30 ? val.substring(0, 30) + '...' : val || '—')
+      render: (val) => val ? (
+        <span title={val} style={{ cursor: 'help' }}>
+          {val.length > 30 ? val.substring(0, 30) + '...' : val}
+        </span>
+      ) : '—'
     },
     {
       key: 'siteAddress',
-      label: 'Site Address',
-      render: (val) => (val && val.length > 30 ? val.substring(0, 30) + '...' : val || '—')
+      label: 'Site Address(es)',
+      render: (_, row) => {
+        if (row.sitesList && row.sitesList.length > 0) {
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px', whiteSpace: 'normal', minWidth: '185px' }}>
+              {row.sitesList.map((site, index) => (
+                <div key={site._id || index} style={{ borderBottom: index < row.sitesList.length - 1 ? '1px dashed var(--color-border)' : 'none', paddingBottom: '4px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '4px' }}>
+                  <span>{index + 1}. {site.siteAddress || '—'}</span>
+                  <SiteDistance site={site} />
+                </div>
+              ))}
+            </div>
+          );
+        }
+        return '—';
+      }
     },
     {
       key: 'status',
@@ -229,6 +270,7 @@ const CustomersPage = () => {
         onSearch={handleSearch}
         onSort={handleSort}
         isLoading={isLoading}
+        getRowClassName={(row) => row.hasPendingPayment ? 'data-table__row--alert' : ''}
         filters={
           <div className="filter-group">
             <label className="field-label">Status</label>
@@ -312,38 +354,17 @@ const CustomersPage = () => {
           />
         </div>
 
-        <div className="form-row form-row--3" style={{ gap: '12px', marginBottom: '16px' }}>
-          <div className="field-group" style={{ marginBottom: 0 }}>
-            <label className="field-label">City</label>
-            <input
-              type="text"
-              className="field-input"
-              value={form.city}
-              onChange={(e) => setForm({ ...form, city: e.target.value })}
-              placeholder="e.g. Pune"
-            />
-          </div>
-          <div className="field-group" style={{ marginBottom: 0 }}>
-            <label className="field-label">State</label>
-            <input
-              type="text"
-              className="field-input"
-              value={form.state}
-              onChange={(e) => setForm({ ...form, state: e.target.value })}
-              placeholder="e.g. Maharashtra"
-            />
-          </div>
-          <div className="field-group" style={{ marginBottom: 0 }}>
-            <label className="field-label">Country</label>
-            <input
-              type="text"
-              className="field-input"
-              value={form.country}
-              onChange={(e) => setForm({ ...form, country: e.target.value })}
-              placeholder="e.g. India"
-            />
-          </div>
+        <div className="field-group">
+          <label className="field-label">Date of Birth</label>
+          <input
+            type="date"
+            className="field-input"
+            value={form.dob}
+            onChange={(e) => setForm({ ...form, dob: e.target.value })}
+          />
         </div>
+
+
 
         <div className="field-group">
           <label className="field-label">Personal Address</label>
@@ -352,17 +373,6 @@ const CustomersPage = () => {
             value={form.personalAddress}
             onChange={(e) => setForm({ ...form, personalAddress: e.target.value })}
             placeholder="Personal home/office address"
-            rows={3}
-          />
-        </div>
-
-        <div className="field-group">
-          <label className="field-label">Site Address</label>
-          <textarea
-            className="field-textarea"
-            value={form.siteAddress}
-            onChange={(e) => setForm({ ...form, siteAddress: e.target.value })}
-            placeholder="Delivery site address"
             rows={3}
           />
         </div>
@@ -377,6 +387,58 @@ const CustomersPage = () => {
       />
     </div>
   );
+};
+
+const DistanceBadge = ({ origin, destination }) => {
+  const { data, isLoading, error } = useGetDistanceQuery({ origin, destination });
+
+  if (isLoading) {
+    return <span style={{ color: 'var(--color-text-secondary)', marginLeft: '4px', fontSize: '10px' }}>(loading...)</span>;
+  }
+
+  if (error || !data || !data.success || data.data.distanceKm === null) {
+    return null;
+  }
+
+  const mapsUrl = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(origin)}&destination=${encodeURIComponent(destination)}`;
+
+  return (
+    <a 
+      href={mapsUrl}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="badge" 
+      style={{ 
+        marginLeft: '4px', 
+        fontSize: '10px', 
+        display: 'inline-flex', 
+        alignItems: 'center', 
+        gap: '2px',
+        padding: '2px 6px',
+        borderRadius: '4px',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        color: '#2563eb',
+        fontWeight: '600',
+        whiteSpace: 'nowrap',
+        textDecoration: 'none',
+        cursor: 'pointer'
+      }}
+      title={`Click to open Google Maps directions from branch address: ${origin}`}
+    >
+      📍 {data.data.distanceKm} km
+    </a>
+  );
+};
+
+const SiteDistance = ({ site }) => {
+  const origin = site.branchId?.address;
+  const destination = site.siteAddress;
+
+  if (!origin || !destination) {
+    return null;
+  }
+
+  return <DistanceBadge origin={origin} destination={destination} />;
 };
 
 export default CustomersPage;

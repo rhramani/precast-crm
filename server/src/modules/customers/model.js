@@ -34,21 +34,6 @@ const customerSchema = new mongoose.Schema(
       uppercase: true,
       default: '',
     },
-    city: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    state: {
-      type: String,
-      trim: true,
-      default: '',
-    },
-    country: {
-      type: String,
-      trim: true,
-      default: '',
-    },
     address: {
       type: String,
       trim: true,
@@ -59,10 +44,9 @@ const customerSchema = new mongoose.Schema(
       trim: true,
       default: '',
     },
-    siteAddress: {
-      type: String,
-      trim: true,
-      default: '',
+    dob: {
+      type: Date,
+      default: null,
     },
     creditLimit: {
       type: Number,
