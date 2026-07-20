@@ -171,29 +171,42 @@ const QuotationsPage = () => {
     }
   };
 
-  const handleImportFromSites = async () => {
-    if (!form.projectId) return;
+  const [costSummary, setCostSummary] = useState(null);
+
+  const handleImportFromSites = async (projectId = form.projectId, silent = false) => {
+    if (!projectId) return;
     try {
-      const res = await triggerGetCombinedReqs(form.projectId).unwrap();
-      if (res && res.success && res.data) {
-        if (res.data.length === 0) {
-          alert("No requirement calculations found for this project's sites. Please calculate requirements for sites first.");
-          return;
+      const res = await triggerGetCombinedReqs(projectId).unwrap();
+      const rawData = res?.data;
+      const itemList = Array.isArray(rawData) ? rawData : (rawData?.items || []);
+      const summaryData = Array.isArray(rawData) ? null : rawData?.summary;
+
+      if (itemList.length === 0 && (!summaryData || summaryData.subTotal === 0)) {
+        if (!silent) {
+          alert("No requirement calculations found for this project's sites.");
         }
-
-        const importedItems = res.data.map(item => ({
-          productId: item.productId,
-          productName: item.productName,
-          productCode: item.productCode,
-          quantity: item.quantity,
-          rate: item.rate,
-          taxPercent: item.taxPercent || 18
-        }));
-
-        setItems(importedItems);
+        setItems([]);
+        setCostSummary(null);
+        return;
       }
+
+      const importedItems = itemList.map((item) => ({
+        productId: item.productId,
+        productName: item.productName,
+        productCode: item.productCode,
+        quantity: item.quantity,
+        rate: item.rate,
+        taxPercent: item.taxPercent || 18,
+      }));
+
+      setItems(importedItems);
+      setCostSummary(summaryData);
     } catch (err) {
-      alert(err?.data?.message || 'Failed to import requirements.');
+      if (!silent) {
+        alert(err?.data?.message || 'Failed to import requirements.');
+      } else {
+        console.error('Failed to import requirements:', err);
+      }
     }
   };
 
@@ -349,7 +362,10 @@ const QuotationsPage = () => {
             <select
               className="field-select"
               value={form.customerId}
-              onChange={(e) => setForm({ ...form, customerId: e.target.value })}
+              onChange={(e) => {
+                setForm({ ...form, customerId: e.target.value, projectId: '' });
+                setItems([]);
+              }}
               disabled={!!selectedQuote}
             >
               <option value="">Choose customer...</option>
@@ -365,7 +381,15 @@ const QuotationsPage = () => {
             <select
               className="field-select"
               value={form.projectId}
-              onChange={(e) => setForm({ ...form, projectId: e.target.value })}
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm({ ...form, projectId: val });
+                if (val) {
+                  handleImportFromSites(val, true);
+                } else {
+                  setItems([]);
+                }
+              }}
               disabled={!!selectedQuote}
             >
               <option value="">Choose project...</option>
@@ -379,17 +403,6 @@ const QuotationsPage = () => {
           </div>
         </div>
 
-        {form.projectId && !selectedQuote && (
-          <button
-            type="button"
-            onClick={handleImportFromSites}
-            className="btn btn--secondary btn--sm"
-            style={{ marginBottom: '16px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-            disabled={importLoading}
-          >
-            {importLoading ? 'Importing...' : '⚡ Import items from Project Sites calculations'}
-          </button>
-        )}
 
         <div className="form-row">
 
@@ -404,82 +417,59 @@ const QuotationsPage = () => {
           </div>
         </div>
 
-        {/* Dynamic quote item staging */}
-        <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '8px' }}>
-          <h4>Line Items</h4>
-          {validationErrors.itemError && <span className="field-error" style={{ display: 'block', marginBottom: '8px' }}>{validationErrors.itemError}</span>}
+        {/* Quotation Summary */}
+        {(items.length > 0 || costSummary) && (
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--color-border)' }}>
+            <h4 style={{ margin: '0 0 10px 0', fontSize: '13px', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              Project Cost & Quotation Summary ({costSummary?.siteCount || 1} Site{costSummary?.siteCount > 1 ? 's' : ''})
+            </h4>
+            <div style={{ padding: '14px 18px', background: 'var(--color-surface-hover)', borderRadius: '8px', border: '1px solid var(--color-border)', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+              {(() => {
+                const compCost = costSummary ? costSummary.componentsCost : items.reduce((sum, it) => sum + (it.quantity * it.rate), 0);
+                const matCost = costSummary ? costSummary.rawMaterialCost : 0;
+                const transCost = costSummary ? costSummary.transportCost : 0;
+                const labCost = costSummary ? costSummary.labourCost : 0;
+                const subTotal = costSummary ? costSummary.subTotal : (compCost + matCost + transCost + labCost);
+                const taxAmount = costSummary ? costSummary.taxAmount : (subTotal * 0.18);
+                const grandTotal = costSummary ? costSummary.grandTotal : (subTotal + taxAmount);
 
-          <div className="form-row form-row--dynamic-add" style={{ gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
-            <div className="field-group">
-              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Product</label>
-              <select
-                className="field-select"
-                value={stageItem.productId}
-                onChange={(e) => setStageItem({ ...stageItem, productId: e.target.value })}
-              >
-                <option value="">Choose product...</option>
-                {products.map((p) => (
-                  <option key={p._id} value={p._id}>{p.productName} ({p.productCode})</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Quantity</label>
-              <input
-                type="number"
-                className="field-input"
-                value={stageItem.quantity}
-                onChange={(e) => setStageItem({ ...stageItem, quantity: e.target.value })}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)' }}>Unit Rate (₹)</label>
-              <input
-                type="number"
-                className="field-input"
-                value={stageItem.rate}
-                onChange={(e) => setStageItem({ ...stageItem, rate: e.target.value })}
-              />
-            </div>
-            <button type="button" onClick={handleAddItem} className="btn btn--secondary" style={{ height: '36px' }}>
-              Add
-            </button>
-          </div>
+                return (
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-primary)' }}>
+                      <span>🧱 Precast Components Cost:</span>
+                      <strong>₹{compCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-primary)' }}>
+                      <span>🏗️ Site Raw Materials Cost:</span>
+                      <strong>₹{matCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-primary)' }}>
+                      <span>🚛 Dispatch Logistics Transport:</span>
+                      <strong>₹{transCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-primary)' }}>
+                      <span>👷 Crew Labour Expense (SQFT Basis):</span>
+                      <strong>₹{labCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong>
+                    </div>
 
-          {/* Staged Items list */}
-          <div className="table-responsive">
-            <table className="data-table">
-              <thead>
-                <tr className="data-table__head">
-                  <th className="data-table__th">Product</th>
-                  <th className="data-table__th">Quantity</th>
-                  <th className="data-table__th">Unit Rate (₹)</th>
-                  <th className="data-table__th">Total (₹)</th>
-                  <th className="data-table__th">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '12px', color: 'var(--color-text-secondary)' }}>No items added yet.</td>
-                  </tr>
-                ) : (
-                  items.map((item, idx) => (
-                    <tr key={idx} className="data-table__row">
-                      <td className="data-table__td">{item.productName}</td>
-                      <td className="data-table__td">{item.quantity}</td>
-                      <td className="data-table__td">₹{item.rate}</td>
-                      <td className="data-table__td">₹{(item.quantity * item.rate).toLocaleString()}</td>
-                      <td className="data-table__td">
-                        <button type="button" onClick={() => handleRemoveItem(idx)} className="btn btn--danger btn--sm">Remove</button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                    <div style={{ borderTop: '1px dashed var(--color-border)', marginTop: '4px', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)', fontWeight: 600 }}>
+                      <span>Combined Project Subtotal (Excl. Tax):</span>
+                      <span>₹{subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)' }}>
+                      <span>GST Tax (18%):</span>
+                      <span>₹{taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, fontSize: '16px', color: 'var(--color-primary-dark)', borderTop: '1px solid var(--color-border)', paddingTop: '8px', marginTop: '4px' }}>
+                      <span>QUOTATION GRAND TOTAL:</span>
+                      <span>₹{grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
           </div>
-        </div>
+        )}
       </FormDrawer>
 
       <ConfirmDialog

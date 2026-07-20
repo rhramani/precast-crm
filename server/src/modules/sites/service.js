@@ -51,9 +51,6 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
     throw err;
   }
 
-  // Linear length of the wall is represented by siteArea (in meters)
-  const length = Number(siteArea);
-
   // Fetch the selected template or fallback to the branch default
   let template = null;
   if (site.wallTemplateId) {
@@ -72,7 +69,10 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
       });
   }
 
-  const wallAreaSqft = (length / 0.3048) * (template ? template.heightFeet || 6 : 6);
+  // Input siteArea is in SQFT
+  const wallAreaSqft = Number(siteArea);
+  const heightFeet = template ? template.heightFeet || 6 : 6;
+  const length = (wallAreaSqft * 0.3048) / heightFeet;
 
   // Identify products in the template by their category mappings
   let panelQtyPerSqft = 0.1355; // default fallback if no template
@@ -90,20 +90,43 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
       const prod = pLine.productId;
       if (!prod) continue;
       
+      const prodName = prod.productName?.toLowerCase() || '';
+      const prodCode = prod.productCode?.toLowerCase() || '';
       const catKey = prod.category?.name
         ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
         : (typeof prod.category === 'string' ? prod.category : '');
 
-      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey)) {
+      // Helper checking if it is a pole/column
+      const isPole = ['pole', 'column'].includes(catKey) || 
+                     prodName.includes('column') || 
+                     prodName.includes('pole') || 
+                     prodName.includes('post') || 
+                     prodCode.includes('col');
+
+      // Helper checking if it is a top beam
+      const isTopBeam = catKey === 'top_beam' || 
+                        prodName.includes('top beam');
+
+      // Helper checking if it is a beam (and not top beam)
+      const isBeam = (catKey === 'beam' || prodName.includes('beam')) && !isTopBeam;
+
+      // Helper checking if it is a panel/slab/wall
+      const isPanel = !isPole && !isBeam && !isTopBeam && 
+                      (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey) || 
+                       prodName.includes('panel') || 
+                       prodName.includes('slab') || 
+                       prodName.includes('wall'));
+
+      if (isPanel) {
         panelQtyPerSqft = pLine.qtyPerSqft;
         panelProduct = prod;
-      } else if (['pole', 'column'].includes(catKey)) {
+      } else if (isPole) {
         poleQtyPerSqft = pLine.qtyPerSqft;
         poleProduct = prod;
-      } else if (catKey === 'beam') {
+      } else if (isBeam) {
         beamQtyPerSqft = pLine.qtyPerSqft;
         beamProduct = prod;
-      } else if (catKey === 'top_beam') {
+      } else if (isTopBeam) {
         topBeamQtyPerSqft = pLine.qtyPerSqft;
         topBeamProduct = prod;
       }
@@ -180,7 +203,6 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
 
   cement = Math.ceil(cement);
   steel = Math.ceil(steel);
-  aggregate = Math.ceil(aggregate);
   rawMaterialCost = Math.ceil(rawMaterialCost);
 
   // Labor: Calculate planned duration from site's start & end dates, falling back to length estimation if undefined
@@ -190,76 +212,6 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
     installationDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1;
   } else {
     installationDays = Math.ceil(length / 15) || 1;
-  }
-
-  // Fetch actual logs from the database tabs (Dispatches & Labour Attendance)
-  const Labour = require('../labour/model');
-  const LabourAttendance = require('../labour/attendanceModel');
-  const Dispatch = require('../dispatch/model');
-
-  const actualDispatches = await Dispatch.find({ siteId: id });
-  const transportTrips = actualDispatches.length;
-
-  // Query attendance logs directly assigned to this site
-  const directAttendance = await LabourAttendance.find({
-    siteId: id,
-    status: { $in: ['present', 'half_day'] }
-  }).populate('labourId');
-
-  // Fallback for older records: find labourers currently assigned to this site and get their logs that don't have siteId set
-  const siteLabourers = await Labour.find({ siteId: id });
-  const labourIds = siteLabourers.map((l) => l._id);
-  
-  const fallbackAttendance = labourIds.length > 0 ? await LabourAttendance.find({
-    labourId: { $in: labourIds },
-    siteId: { $exists: false },
-    status: { $in: ['present', 'half_day'] }
-  }).populate('labourId') : [];
-
-  const attendance = [...directAttendance, ...fallbackAttendance];
-
-  let labour = 0;
-  attendance.forEach((att) => {
-    if (att.status === 'present') {
-      labour += 1;
-    } else if (att.status === 'half_day') {
-      labour += 0.5;
-    }
-  });
-
-  // Fetch detailed breakdown of actual dispatches
-  const dispatchesBreakdown = actualDispatches.map(d => ({
-    challanNumber: d.dispatchNumber,
-    dispatchDate: d.dispatchedDate || d.createdAt,
-    driverName: d.transportDetails?.driverName || '—',
-    vehicleNumber: d.transportDetails?.vehicleNumber || '—',
-    status: d.status
-  }));
-
-  // Fetch detailed breakdown of labour attendance
-  const labourBreakdown = [];
-  if (siteLabourers && siteLabourers.length > 0) {
-    siteLabourers.forEach(lab => {
-      const atts = attendance.filter(a => {
-        const aLabId = a.labourId?._id || a.labourId;
-        return aLabId.toString() === lab._id.toString();
-      });
-      let days = 0;
-      atts.forEach(a => {
-        if (a.status === 'present') days += 1;
-        else if (a.status === 'half_day') days += 0.5;
-      });
-      if (days > 0) {
-        const wages = lab.dailyWages || 800;
-        labourBreakdown.push({
-          labourName: lab.labourName,
-          labourType: lab.labourType,
-          daysLogged: days,
-          dailyWages: wages,
-          totalCost: days * wages
-        });
-      }
-    });
   }
 
   // Dynamically resolve product selling prices, falling back to site overrides, then Product Master, then standard presets
@@ -273,70 +225,106 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
   const beamCost = beams * beamPrice;
   const topBeamCost = topBeams * topBeamPrice;
 
-  // Resolve average crew daily wage rates based on actual labourers assigned to this site, or active database workers in the branch
-  let estimatedDailyWage = 0;
-  let crewSize = 0;
-  let compositionText = '';
-  let masonRate = 0;
-  let helperRate = 0;
+  // Dynamic calculation of Logistics & Crew from Dispatch & Labour tabs
+  // 1. Fetch actual dispatches logged in Dispatch tab for this site
+  const Dispatch = require('../dispatch/model');
+  const actualDispatches = await Dispatch.find({ siteId: id });
+  const transportTrips = actualDispatches.length;
+  const transportRate = (site.transportRatePerTrip && site.transportRatePerTrip > 0) ? site.transportRatePerTrip : 3500;
+  const transportCost = actualDispatches.reduce((sum, d) => sum + (d.transportCost || d.freightCharge || transportRate), 0);
+
+  // Fetch detailed breakdown of actual dispatches
+  const dispatchesBreakdown = actualDispatches.map(d => ({
+    challanNumber: d.dispatchNumber,
+    dispatchDate: d.dispatchedDate || d.createdAt,
+    driverName: d.transportDetails?.driverName || '—',
+    vehicleNumber: d.transportDetails?.vehicleNumber || '—',
+    transportCost: d.transportCost || d.freightCharge || transportRate,
+    status: d.status
+  }));
+
+  // 2. Fetch actual labour attendance logged in Labour tab for this site
+  const Labour = require('../labour/model');
+  const LabourAttendance = require('../labour/attendanceModel');
+
+  const directAttendance = await LabourAttendance.find({
+    siteId: id,
+    status: { $in: ['present', 'half_day'] }
+  }).populate('labourId');
+
+  const siteLabourers = await Labour.find({ siteId: id });
+  const labourIds = siteLabourers.map((l) => l._id);
+  
+  const fallbackAttendance = labourIds.length > 0 ? await LabourAttendance.find({
+    labourId: { $in: labourIds },
+    siteId: { $exists: false },
+    status: { $in: ['present', 'half_day'] }
+  }).populate('labourId') : [];
+
+  const attendance = [...directAttendance, ...fallbackAttendance];
+
+  let labourManDays = 0;
+  let actualLaborCost = 0;
+  const labourBreakdown = [];
 
   if (siteLabourers && siteLabourers.length > 0) {
-    crewSize = siteLabourers.length;
-    estimatedDailyWage = siteLabourers.reduce((sum, lab) => sum + (lab.dailyWages || 0), 0);
-    
-    // Group and count by labourType
-    const counts = {};
-    const rates = {};
-    siteLabourers.forEach(l => {
-      counts[l.labourType] = (counts[l.labourType] || 0) + 1;
-      rates[l.labourType] = (rates[l.labourType] || 0) + (l.dailyWages || 0);
+    // SQFT-based Labour Payment: Total site area (SQFT) divided equally among assigned labourers
+    const workerCount = siteLabourers.length;
+    const sqftPerWorker = wallAreaSqft / workerCount;
+    labourManDays = workerCount;
+
+    siteLabourers.forEach((lab) => {
+      const ratePerSqft = lab.dailyWages || site.labourRatePerManDay || 13;
+      const workerCost = Math.round(sqftPerWorker * ratePerSqft);
+      actualLaborCost += workerCost;
+      labourBreakdown.push({
+        labourName: lab.labourName,
+        labourType: lab.labourType,
+        sqftAllocated: Math.round(sqftPerWorker),
+        ratePerSqft,
+        dailyWages: ratePerSqft,
+        daysLogged: Math.round(sqftPerWorker), // For UI backward compatibility
+        totalCost: workerCost,
+      });
+    });
+  } else if (attendance && attendance.length > 0) {
+    attendance.forEach((att) => {
+      if (att.status === 'present') labourManDays += 1;
+      else if (att.status === 'half_day') labourManDays += 0.5;
     });
 
-    const parts = Object.keys(counts).map(type => {
-      const count = counts[type];
-      const avgRate = Math.round(rates[type] / count);
-      const label = count === 1 ? type.toUpperCase() : `${type.toUpperCase()}s`;
-      return `${count} ${label} @ ₹${avgRate.toLocaleString('en-IN')}/day`;
+    siteLabourers.forEach((lab) => {
+      const atts = attendance.filter((a) => {
+        const aLabId = a.labourId?._id || a.labourId;
+        return aLabId.toString() === lab._id.toString();
+      });
+      let days = 0;
+      atts.forEach((a) => {
+        if (a.status === 'present') days += 1;
+        else if (a.status === 'half_day') days += 0.5;
+      });
+      if (days > 0) {
+        const ratePerSqft = lab.dailyWages || site.labourRatePerManDay || 13;
+        const total = Math.round((wallAreaSqft / siteLabourers.length) * ratePerSqft);
+        actualLaborCost += total;
+        labourBreakdown.push({
+          labourName: lab.labourName,
+          labourType: lab.labourType,
+          sqftAllocated: Math.round(wallAreaSqft / siteLabourers.length),
+          ratePerSqft,
+          dailyWages: ratePerSqft,
+          totalCost: total,
+        });
+      }
     });
-    compositionText = parts.join(' + ');
-
-    // Extract average rates for backwards compatibility
-    const masonsList = siteLabourers.filter(l => l.labourType === 'mason');
-    const helpersList = siteLabourers.filter(l => l.labourType === 'helper');
-    masonRate = masonsList.length > 0 ? Math.round(masonsList.reduce((s, m) => s + (m.dailyWages || 0), 0) / masonsList.length) : 1200;
-    helperRate = helpersList.length > 0 ? Math.round(helpersList.reduce((s, h) => s + (h.dailyWages || 0), 0) / helpersList.length) : 700;
   } else {
-    // Resolve average crew daily wage rates from active database workers in the branch
-    const activeLabourers = await Labour.find({ status: 'active', branchId: site.branchId });
-    const activeMasons = activeLabourers.filter(l => l.labourType === 'mason');
-    const activeHelpers = activeLabourers.filter(l => l.labourType === 'helper');
-
-    masonRate = activeMasons.length > 0 
-      ? Math.round(activeMasons.reduce((s, m) => s + (m.dailyWages || 0), 0) / activeMasons.length) 
-      : 1200; // default mason rate if no active mason profile exists
-    
-    helperRate = activeHelpers.length > 0 
-      ? Math.round(activeHelpers.reduce((s, h) => s + (h.dailyWages || 0), 0) / activeHelpers.length) 
-      : 700; // default helper rate if no active helper profile exists
-
-    // Use site-wise labor rate override if specified and greater than 0
-    if (site.labourRatePerManDay && site.labourRatePerManDay > 0) {
-      helperRate = site.labourRatePerManDay;
-      masonRate = Math.round(site.labourRatePerManDay * 1.5);
-    }
-
-    crewSize = 4;
-    estimatedDailyWage = (1 * masonRate) + (3 * helperRate);
-    compositionText = `1 MASON @ ₹${masonRate.toLocaleString('en-IN')}/day + 3 HELPERS @ ₹${helperRate.toLocaleString('en-IN')}/day each`;
+    const defaultRate = site.labourRatePerManDay || 13;
+    actualLaborCost = Math.round(wallAreaSqft * defaultRate);
   }
 
-  const estimatedLaborCost = installationDays * estimatedDailyWage;
-
-  const estimatedTrips = Math.ceil(wallPanels / 50) || 1; // Capacity of 50 panels per truck trip
-  const transportRate = (site.transportRatePerTrip && site.transportRatePerTrip > 0) ? site.transportRatePerTrip : 3500;
-  const estimatedLogisticsCost = estimatedTrips * transportRate;
-
-  const estimatedCost = panelCost + poleCost + beamCost + topBeamCost + rawMaterialCost + estimatedLaborCost + estimatedLogisticsCost;
+  const componentCost = panelCost + poleCost + beamCost + topBeamCost;
+  const logisticsLaborCost = transportCost + actualLaborCost;
+  const totalCalculatedCost = componentCost + rawMaterialCost + logisticsLaborCost;
 
   const result = {
     wallPanels,
@@ -346,12 +334,17 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
     cement,
     steel,
     aggregate,
-    labour,
+    labour: labourManDays,
+    labourManDays,
     labourBreakdown,
     installationDays,
     transportTrips,
+    transportCost,
+    actualLaborCost,
+    logisticsLaborCost,
     dispatchesBreakdown,
-    estimatedCost,
+    totalCalculatedCost,
+    estimatedCost: totalCalculatedCost,
     rawMaterialCost,
     rawMaterialBreakdown,
     transportRate,
@@ -362,23 +355,22 @@ const calculateRequirements = async (id, branchFilter, siteArea) => {
       topBeam: topBeamPrice,
     },
     laborEstimate: {
-      crewSize,
-      masonRate,
-      helperRate,
-      composition: compositionText,
-      avgDailyWage: crewSize > 0 ? Math.round(estimatedDailyWage / crewSize) : 800,
-      totalCost: estimatedLaborCost
+      crewSize: siteLabourers ? siteLabourers.length : 0,
+      avgDailyWage: siteLabourers && siteLabourers.length > 0
+        ? Math.round(siteLabourers.reduce((s, l) => s + (l.dailyWages || 800), 0) / siteLabourers.length)
+        : (site.labourRatePerManDay || 800),
+      totalCost: actualLaborCost
     }
   };
 
   // Persist this calculation reference for reports/logs
   await SiteCalculation.create({
     siteId: site._id,
-    siteArea: length,
-    calculated: result,
+    siteArea: wallAreaSqft,
+    calculated: { ...result, lengthInMeters: length },
   });
 
-  return { site, siteArea: length, calculated: result };
+  return { site, siteArea: wallAreaSqft, calculated: { ...result, lengthInMeters: length } };
 };
 
 const getSite = async (id, branchFilter) => {
@@ -400,11 +392,96 @@ const deleteSite = async (id, branchFilter) => {
   return site;
 };
 
+const getSiteProductRequirements = async (id, branchFilter) => {
+  const site = await Site.findOne({ _id: id, ...branchFilter });
+  if (!site) {
+    const err = new Error('Site not found');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  let template = null;
+  if (site.wallTemplateId) {
+    template = await WallCategoryTemplate.findById(site.wallTemplateId)
+      .populate({ path: 'products.productId', populate: { path: 'category' } });
+  } else {
+    template = await WallCategoryTemplate.findOne({ branchId: site.branchId, isDefault: true })
+      .populate({ path: 'products.productId', populate: { path: 'category' } });
+  }
+
+  const siteArea = Number(site.siteArea || 0);
+  const productRequirementsMap = {};
+
+  if (template && template.products && template.products.length > 0 && siteArea > 0) {
+    for (const pLine of template.products) {
+      const prod = pLine.productId;
+      if (!prod || !prod._id) continue;
+
+      const pIdStr = prod._id.toString();
+      const prodName = prod.productName?.toLowerCase() || '';
+      const prodCode = prod.productCode?.toLowerCase() || '';
+      const catKey = prod.category?.name
+        ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
+        : (typeof prod.category === 'string' ? prod.category : '');
+
+      const isPole = ['pole', 'column'].includes(catKey) || 
+                     prodName.includes('column') || 
+                     prodName.includes('pole') || 
+                     prodName.includes('post') || 
+                     prodCode.includes('col');
+
+      const qtyPerSqft = pLine.qtyPerSqft || 0;
+      let totalRequired = Math.ceil(siteArea * qtyPerSqft);
+      if (isPole) totalRequired += 1;
+
+      productRequirementsMap[pIdStr] = {
+        productId: prod._id,
+        productName: prod.productName,
+        productCode: prod.productCode,
+        unit: prod.unit || 'pcs',
+        totalRequired,
+        alreadyDispatched: 0,
+        remainingRequired: totalRequired
+      };
+    }
+  }
+
+  const Dispatch = require('../dispatch/model');
+  const existingDispatches = await Dispatch.find({ siteId: id });
+
+  for (const disp of existingDispatches) {
+    if (!disp.items) continue;
+    for (const item of disp.items) {
+      const pIdStr = item.productId?._id?.toString() || item.productId?.toString();
+      if (!pIdStr) continue;
+
+      if (productRequirementsMap[pIdStr]) {
+        productRequirementsMap[pIdStr].alreadyDispatched += item.quantity;
+      }
+    }
+  }
+
+  const requirementsList = Object.values(productRequirementsMap).map(req => ({
+    ...req,
+    remainingRequired: Math.max(0, req.totalRequired - req.alreadyDispatched)
+  }));
+
+  return {
+    siteId: site._id,
+    siteName: site.siteName,
+    siteArea: site.siteArea,
+    hasTemplate: !!template,
+    templateName: template ? template.name : null,
+    requirements: requirementsList
+  };
+};
+
 module.exports = {
   createSite,
   updateSite,
   updateSiteStatus,
   calculateRequirements,
+  getSiteProductRequirements,
   getSite,
   deleteSite,
 };

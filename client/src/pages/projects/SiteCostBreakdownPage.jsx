@@ -67,10 +67,15 @@ const SiteCostBreakdownPage = () => {
   ].reduce((a, b) => a + b, 0);
 
   const rawMaterialCost = calculated.rawMaterialCost || 0;
-  const laborCost = calculated.laborEstimate?.totalCost || 0;
-  const trips = Math.ceil(calculated.wallPanels / 50) || 1;
-  const transportCost = trips * (calculated.transportRate ?? 3500);
-  const logisticsLaborCost = laborCost + transportCost;
+
+  const loggedTrips = calculated?.transportTrips || 0;
+  const transportRate = calculated?.transportRate ?? 3500;
+  const transportCost = calculated?.transportCost || (loggedTrips * transportRate);
+  const loggedLabourDays = calculated?.labourManDays ?? calculated?.labour ?? 0;
+  const laborCost = calculated?.actualLaborCost || 0;
+
+  const logisticsLaborCost = calculated?.logisticsLaborCost || (transportCost + laborCost);
+  const totalProjectCost = componentCost + rawMaterialCost + logisticsLaborCost;
 
   return (
     <div className="redesign-layout">
@@ -114,10 +119,10 @@ const SiteCostBreakdownPage = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
               <div style={{ flex: 1, height: '6px', background: '#e2e8f0', borderRadius: '3px', overflow: 'hidden' }}>
-                <div style={{ width: `${(c.val / calculated.estimatedCost) * 100}%`, height: '100%', background: c.color, borderRadius: '3px' }} />
+                <div style={{ width: `${totalProjectCost > 0 ? (c.val / totalProjectCost) * 100 : 0}%`, height: '100%', background: c.color, borderRadius: '3px' }} />
               </div>
               <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600 }}>
-                {Math.round((c.val / calculated.estimatedCost) * 100) || 0}%
+                {totalProjectCost > 0 ? Math.round((c.val / totalProjectCost) * 100) : 0}%
               </span>
             </div>
           </div>
@@ -218,19 +223,19 @@ const SiteCostBreakdownPage = () => {
               </div>
             </div>
 
-            {/* 3. Logistics & Crew Estimates */}
+            {/* 3. Logistics & Crew */}
             <div className="cost-section">
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <div style={{ background: '#fffbeb', color: '#d97706', padding: '6px', borderRadius: '8px', display: 'flex', alignItems: 'center' }}>
                   <Truck size={16} />
                 </div>
                 <h4 style={{ margin: 0, fontSize: '13px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  3. Logistics & Crew Estimates
+                  3. Logistics & Crew
                 </h4>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-                {/* Labour Estimate */}
+                {/* Labour */}
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -244,48 +249,47 @@ const SiteCostBreakdownPage = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px' }}>Installation Crew Labour</span>
                       <span style={{ fontSize: '10px', background: '#fef3c7', color: '#d97706', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>
-                        {calculated.installationDays} days
+                        {loggedLabourDays} man-days
                       </span>
                     </div>
                     <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px', lineHeight: '1.4' }}>
-                      {calculated.laborEstimate?.composition || `crew of ${calculated.laborEstimate?.crewSize || 4}`}
+                      {loggedLabourDays > 0
+                        ? `${calculated.labourBreakdown?.length || 0} active workers logged in Labour tab`
+                        : 'No attendance logged in Labour tab yet'}
                     </div>
                   </div>
                   <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
-                    ₹{(calculated.laborEstimate?.totalCost || (calculated.installationDays * 4 * 800)).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                    ₹{laborCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                   </div>
                 </div>
 
-                {/* Transport Estimate */}
-                {(() => {
-                  const transportCost = trips * (calculated.transportRate ?? 3500);
-                  return (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '16px',
-                      background: '#f8fafc',
-                      borderRadius: '16px',
-                      border: '1px solid #f1f5f9',
-                    }}>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px' }}>Logistics Transport</span>
-                          <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#059669', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>
-                            {trips} trips
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
-                          Estimated transport rate: <span style={{ fontWeight: 500 }}>₹{(calculated.transportRate ?? 3500).toLocaleString('en-IN')}/trip</span>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
-                        ₹{transportCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                      </div>
+                {/* Transport */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '16px',
+                  background: '#f8fafc',
+                  borderRadius: '16px',
+                  border: '1px solid #f1f5f9',
+                }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontWeight: 600, color: '#334155', fontSize: '13px' }}>Logistics Transport</span>
+                      <span style={{ fontSize: '10px', background: '#ecfdf5', color: '#059669', padding: '2px 6px', borderRadius: '6px', fontWeight: 700 }}>
+                        {loggedTrips} trips
+                      </span>
                     </div>
-                  );
-                })()}
+                    <div style={{ fontSize: '11px', color: '#64748b', marginTop: '4px' }}>
+                      {loggedTrips > 0
+                        ? `${calculated.dispatchesBreakdown?.length || 0} challans logged (@ ₹${transportRate.toLocaleString('en-IN')}/trip)`
+                        : 'No dispatches logged in Dispatch tab yet'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>
+                    ₹{transportCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -302,14 +306,14 @@ const SiteCostBreakdownPage = () => {
             }}>
               <div>
                 <div style={{ fontSize: '12px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Total Estimated Project Cost
+                  Total Project Cost
                 </div>
                 <div style={{ fontSize: '13px', color: '#cbd5e1', marginTop: '2px' }}>
-                  Includes all precast units, structural raw materials, labour crews, and logistics trips.
+                  Includes precast units, structural raw materials, and logged labour/logistics.
                 </div>
               </div>
               <div style={{ fontSize: '28px', fontWeight: 800, color: '#ffffff', letterSpacing: '-0.03em' }}>
-                ₹{calculated.estimatedCost?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                ₹{totalProjectCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </div>
             </div>
 

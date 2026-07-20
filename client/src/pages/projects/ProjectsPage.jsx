@@ -154,7 +154,6 @@ const ProjectsPage = () => {
         <ActionsDropdown
           actions={[
             { label: 'Manage Sites', onClick: () => navigate(`/projects/${row._id}/sites`), type: 'info' },
-            { label: 'Project Costing Rollup', onClick: () => navigate(`/costing/project/${row._id}`), type: 'success' },
             { label: 'Edit Project', onClick: () => handleOpenEdit(row), type: 'primary' },
             { divider: true },
             { label: 'Delete', onClick: () => handleDeleteProject(row._id), type: 'danger' }

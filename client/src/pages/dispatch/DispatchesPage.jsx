@@ -16,6 +16,7 @@ import DataTable from '../../components/ui/DataTable';
 import FormDrawer from '../../components/ui/FormDrawer';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ActionsDropdown from '../../components/ui/ActionsDropdown';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
 const DispatchesPage = () => {
   const navigate = useNavigate();
@@ -66,6 +67,7 @@ const DispatchesPage = () => {
     driverName: '',
     contactNumber: '',
     helperName: '',
+    transportCost: '',
   });
 
   const [items, setItems] = useState([]);
@@ -78,6 +80,26 @@ const DispatchesPage = () => {
 
   // Dynamic project sites lookup
   const [projectSites, setProjectSites] = useState([]);
+  const [siteRequirements, setSiteRequirements] = useState([]);
+  const [loadingRequirements, setLoadingRequirements] = useState(false);
+
+  // Confirm and Notification modal states
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'primary',
+    onConfirm: null,
+  });
+
+  const [notificationDialog, setNotificationDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'danger',
+  });
 
   const handleSearch = (val) => {
     setSearch(val);
@@ -94,6 +116,7 @@ const DispatchesPage = () => {
   // Fetch sites for selected project
   const handleProjectChange = async (projectId) => {
     setForm((prev) => ({ ...prev, projectId, siteId: '' }));
+    setSiteRequirements([]);
     if (!projectId) {
       setProjectSites([]);
       return;
@@ -114,7 +137,36 @@ const DispatchesPage = () => {
       }
     } catch (e) {
       setProjectSites([]);
-      alert(e.message || 'Failed to load project sites');
+      setNotificationDialog({
+        isOpen: true,
+        title: 'Error Loading Sites',
+        message: e.message || 'Failed to load project sites',
+        type: 'danger',
+      });
+    }
+  };
+
+  // Fetch site product requirements & dispatched progress
+  const handleSiteChange = async (siteId) => {
+    setForm((prev) => ({ ...prev, siteId }));
+    setSiteRequirements([]);
+    if (!siteId) return;
+
+    setLoadingRequirements(true);
+    try {
+      const response = await fetch(`${API_BASE}/sites/${siteId}/dispatch-requirements`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
+      });
+      if (response.ok) {
+        const resData = await response.json();
+        if (resData.success && resData.data?.requirements) {
+          setSiteRequirements(resData.data.requirements || []);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load site dispatch requirements:', e);
+    } finally {
+      setLoadingRequirements(false);
     }
   };
 
@@ -129,9 +181,11 @@ const DispatchesPage = () => {
       driverName: '',
       contactNumber: '',
       helperName: '',
+      transportCost: '3500',
     });
     setItems([]);
     setProjectSites([]);
+    setSiteRequirements([]);
     setStageItem({ productId: '', quantity: '' });
     setValidationErrors({});
     setDrawerOpen(true);
@@ -139,16 +193,22 @@ const DispatchesPage = () => {
 
   const handleOpenEdit = async (disp) => {
     setSelectedDispatch(disp);
+    const targetSiteId = disp.siteId?._id || disp.siteId || '';
     setForm({
       projectId: disp.projectId?._id || disp.projectId || '',
-      siteId: disp.siteId?._id || disp.siteId || '',
+      siteId: targetSiteId,
       dispatchNumber: disp.dispatchNumber || '',
       branchId: disp.branchId || '',
       vehicleNumber: disp.transportDetails?.vehicleNumber || '',
       driverName: disp.transportDetails?.driverName || '',
       contactNumber: disp.transportDetails?.contactNumber || '',
       helperName: disp.transportDetails?.helperName || '',
+      transportCost: disp.transportCost !== undefined ? String(disp.transportCost) : '3500',
     });
+
+    if (targetSiteId) {
+      handleSiteChange(targetSiteId);
+    }
 
     // Populate sites list for that project
     const projId = disp.projectId?._id || disp.projectId;
@@ -169,7 +229,12 @@ const DispatchesPage = () => {
         }
       } catch (e) {
         setProjectSites([]);
-        alert(e.message || 'Failed to load project sites');
+        setNotificationDialog({
+          isOpen: true,
+          title: 'Error Loading Sites',
+          message: e.message || 'Failed to load project sites',
+          type: 'danger',
+        });
       }
     }
 
@@ -198,10 +263,30 @@ const DispatchesPage = () => {
       return;
     }
 
-    const prod = finishedGoods.find((fg) => fg.productId === stageItem.productId);
-    if (!prod) return;
+    // Check site requirements limit if available
+    const req = siteRequirements.find((r) => String(r.productId) === String(stageItem.productId));
+    if (req) {
+      if (req.remainingRequired <= 0) {
+        setValidationErrors((prev) => ({
+          ...prev,
+          itemError: `Site requirement for ${req.productName} is already completely fulfilled (${req.alreadyDispatched}/${req.totalRequired} ${req.unit} dispatched).`,
+        }));
+        return;
+      }
+      if (qty > req.remainingRequired) {
+        setValidationErrors((prev) => ({
+          ...prev,
+          itemError: `Quantity (${qty} ${req.unit}) exceeds remaining site requirement (${req.remainingRequired} ${req.unit} needed out of ${req.totalRequired})!`,
+        }));
+        return;
+      }
+    }
 
-    if (items.some((it) => it.productId === prod.productId)) {
+    const prod = finishedGoods.find((fg) => String(fg.productId) === String(stageItem.productId));
+    const prodName = prod ? prod.productName : (req ? req.productName : 'Product');
+    const prodCode = prod ? prod.productCode : (req ? req.productCode : '');
+
+    if (items.some((it) => String(it.productId) === String(stageItem.productId))) {
       setValidationErrors((prev) => ({ ...prev, itemError: 'Product is already added' }));
       return;
     }
@@ -209,9 +294,9 @@ const DispatchesPage = () => {
     setItems((prev) => [
       ...prev,
       {
-        productId: prod.productId,
-        productName: prod.productName,
-        productCode: prod.productCode,
+        productId: stageItem.productId,
+        productName: prodName,
+        productCode: prodCode,
         quantity: qty,
       },
     ]);
@@ -222,21 +307,52 @@ const DispatchesPage = () => {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const handleConfirmDispatch = async (id) => {
-    if (!confirm('Are you sure you want to mark this dispatch as shipped? This will deduct finished goods inventory.')) return;
-    try {
-      await confirmDispatch(id).unwrap();
-    } catch (err) {
-      alert(err?.data?.message || 'Dispatch confirmation failed.');
-    }
+  const handleRequestShipDispatch = (row) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Ship Vehicle & Deduct Inventory',
+      message: `Are you sure you want to mark dispatch ${row.dispatchNumber} as shipped? This will deduct finished goods stock.`,
+      confirmText: 'Ship Vehicle',
+      cancelText: 'Cancel',
+      type: 'primary',
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await confirmDispatch(row._id).unwrap();
+        } catch (err) {
+          setNotificationDialog({
+            isOpen: true,
+            title: 'Shipment Confirmation Failed',
+            message: err?.data?.message || 'Dispatch confirmation failed.',
+            type: 'danger',
+          });
+        }
+      },
+    });
   };
 
-  const handleConfirmDelivery = async (id) => {
-    try {
-      await confirmDelivery(id).unwrap();
-    } catch (err) {
-      alert(err?.data?.message || 'Delivery confirmation failed.');
-    }
+  const handleRequestConfirmDelivery = (row) => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Delivery at Site',
+      message: `Are you sure you want to mark dispatch ${row.dispatchNumber} as delivered?`,
+      confirmText: 'Mark Delivered',
+      cancelText: 'Cancel',
+      type: 'success',
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await confirmDelivery(row._id).unwrap();
+        } catch (err) {
+          setNotificationDialog({
+            isOpen: true,
+            title: 'Delivery Confirmation Failed',
+            message: err?.data?.message || 'Delivery confirmation failed.',
+            type: 'danger',
+          });
+        }
+      },
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -270,6 +386,7 @@ const DispatchesPage = () => {
           contactNumber: form.contactNumber,
           helperName: form.helperName,
         },
+        transportCost: Number(form.transportCost) || 0,
       };
 
       if (selectedDispatch) {
@@ -299,6 +416,15 @@ const DispatchesPage = () => {
         </span>
       ),
     },
+    {
+      key: 'transportCost',
+      label: 'Freight Cost',
+      render: (val) => (
+        <span style={{ fontWeight: 600 }}>
+          ₹{(val !== undefined ? val : 3500).toLocaleString('en-IN')}
+        </span>
+      ),
+    },
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'dates',
@@ -316,9 +442,9 @@ const DispatchesPage = () => {
       render: (_, row) => {
         const actions = [
           { label: 'View Details', onClick: () => navigate(`/dispatch/${row._id}`), type: 'info' },
-          row.status === 'draft' && { label: 'Edit Dispatch', onClick: () => handleOpenEdit(row), type: 'primary' },
-          row.status === 'draft' && { label: 'Ship Vehicle', onClick: () => handleConfirmDispatch(row._id), type: 'success' },
-          row.status === 'dispatched' && { label: 'Confirm Delivered', onClick: () => handleConfirmDelivery(row._id), type: 'success' }
+          { label: 'Edit Dispatch', onClick: () => handleOpenEdit(row), type: 'primary' },
+          row.status === 'draft' && { label: 'Ship Vehicle', onClick: () => handleRequestShipDispatch(row), type: 'success' },
+          row.status === 'dispatched' && { label: 'Confirm Delivered', onClick: () => handleRequestConfirmDelivery(row), type: 'success' }
         ];
         return <ActionsDropdown actions={actions} />;
       },
@@ -400,7 +526,7 @@ const DispatchesPage = () => {
             <select
               className="field-select"
               value={form.siteId}
-              onChange={(e) => setForm({ ...form, siteId: e.target.value })}
+              onChange={(e) => handleSiteChange(e.target.value)}
               disabled={!form.projectId || !!selectedDispatch}
             >
               <option value="">Select Site...</option>
@@ -477,42 +603,78 @@ const DispatchesPage = () => {
               placeholder="Helper Name"
             />
           </div>
+          <div className="field-group">
+            <label className="field-label">Freight / Transport Cost (₹)</label>
+            <input
+              type="number"
+              className="field-input"
+              value={form.transportCost}
+              onChange={(e) => setForm({ ...form, transportCost: e.target.value })}
+              placeholder="3500"
+            />
+          </div>
         </div>
 
         {/* Staging dispatches items */}
         <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '16px', marginTop: '16px' }}>
           <h4>Dispatched Finished Goods</h4>
-          {validationErrors.itemError && <span className="field-error" style={{ display: 'block', marginBottom: '8px' }}>{validationErrors.itemError}</span>}
+          {selectedDispatch && selectedDispatch.status !== 'draft' ? (
+            <div style={{ fontSize: '11px', color: 'var(--color-warning-dark)', background: '#fef3c7', padding: '8px 12px', borderRadius: '4px', marginBottom: '12px', border: '1px solid #fde68a' }}>
+              🔒 <strong>Products Locked ({selectedDispatch.status.toUpperCase()}):</strong> Product quantities are locked to preserve inventory audit records. You can update vehicle details and Freight Cost below.
+            </div>
+          ) : (
+            <>
+              {loadingRequirements && <div style={{ fontSize: '11px', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>Loading site product requirements...</div>}
+              {siteRequirements.length > 0 && (
+                <div style={{ fontSize: '11px', color: 'var(--color-primary)', background: 'var(--color-surface-hover)', padding: '6px 10px', borderRadius: '4px', marginBottom: '10px', border: '1px solid var(--color-border)' }}>
+                  🎯 <strong>Site Requirements Filter Active:</strong> Only products required for this site are listed below with remaining needed quantities.
+                </div>
+              )}
+              {validationErrors.itemError && <span className="field-error" style={{ display: 'block', marginBottom: '8px' }}>{validationErrors.itemError}</span>}
 
-          <div className="form-row form-row--dynamic-3" style={{ gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
-            <div className="field-group">
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Select Product</label>
-              <select
-                className="field-select"
-                value={stageItem.productId}
-                onChange={(e) => setStageItem({ ...stageItem, productId: e.target.value })}
-              >
-                <option value="">Choose product...</option>
-                {finishedGoods.map((fg) => (
-                  <option key={fg.productId} value={fg.productId}>
-                    {fg.productName} ({fg.productCode}) | Avail: {fg.availableStock} {fg.unit}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Qty</label>
-              <input
-                type="number"
-                className="field-input"
-                value={stageItem.quantity}
-                onChange={(e) => setStageItem({ ...stageItem, quantity: e.target.value })}
-              />
-            </div>
-            <button type="button" onClick={handleAddItem} className="btn btn--secondary" style={{ height: '36px' }}>
-              Add
-            </button>
-          </div>
+              <div className="form-row form-row--dynamic-3" style={{ gap: '8px', alignItems: 'flex-end', marginBottom: '12px' }}>
+                <div className="field-group">
+                  <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Select Product</label>
+                  <select
+                    className="field-select"
+                    value={stageItem.productId}
+                    onChange={(e) => setStageItem({ ...stageItem, productId: e.target.value })}
+                  >
+                    <option value="">Choose product...</option>
+                    {siteRequirements.length > 0
+                      ? siteRequirements.map((req) => {
+                          const fg = finishedGoods.find((item) => String(item.productId) === String(req.productId));
+                          const availStock = fg ? fg.availableStock : 0;
+                          const isDepleted = req.remainingRequired <= 0;
+                          return (
+                            <option key={req.productId} value={req.productId} disabled={isDepleted}>
+                              {isDepleted ? '✓ [FULFILLED] ' : ''}
+                              {req.productName} ({req.productCode || '—'}) | Site Needed: {req.remainingRequired}/{req.totalRequired} {req.unit} | Stock: {availStock} {req.unit}
+                            </option>
+                          );
+                        })
+                      : finishedGoods.map((fg) => (
+                          <option key={fg.productId} value={fg.productId}>
+                            {fg.productName} ({fg.productCode}) | Avail: {fg.availableStock} {fg.unit}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '11px', color: 'var(--color-text-secondary)' }}>Qty</label>
+                  <input
+                    type="number"
+                    className="field-input"
+                    value={stageItem.quantity}
+                    onChange={(e) => setStageItem({ ...stageItem, quantity: e.target.value })}
+                  />
+                </div>
+                <button type="button" onClick={handleAddItem} className="btn btn--secondary" style={{ height: '36px' }}>
+                  Add
+                </button>
+              </div>
+            </>
+          )}
 
           <div className="table-responsive">
             <table className="data-table">
@@ -520,7 +682,7 @@ const DispatchesPage = () => {
                 <tr className="data-table__head">
                   <th className="data-table__th">Product</th>
                   <th className="data-table__th">Quantity</th>
-                  <th className="data-table__th">Action</th>
+                  {(!selectedDispatch || selectedDispatch.status === 'draft') && <th className="data-table__th">Action</th>}
                 </tr>
               </thead>
               <tbody>
@@ -533,9 +695,11 @@ const DispatchesPage = () => {
                     <tr key={idx} className="data-table__row">
                       <td className="data-table__td">{item.productName} ({item.productCode})</td>
                       <td className="data-table__td">{item.quantity}</td>
-                      <td className="data-table__td">
-                        <button type="button" onClick={() => handleRemoveItem(idx)} className="btn btn--danger btn--sm">Remove</button>
-                      </td>
+                      {(!selectedDispatch || selectedDispatch.status === 'draft') && (
+                        <td className="data-table__td">
+                          <button type="button" onClick={() => handleRemoveItem(idx)} className="btn btn--danger btn--sm">Remove</button>
+                        </td>
+                      )}
                     </tr>
                   ))
                 )}
@@ -544,6 +708,28 @@ const DispatchesPage = () => {
           </div>
         </div>
       </FormDrawer>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <ConfirmDialog
+        isOpen={notificationDialog.isOpen}
+        title={notificationDialog.title}
+        message={notificationDialog.message}
+        confirmText="OK"
+        cancelText=""
+        type={notificationDialog.type}
+        onConfirm={() => setNotificationDialog((prev) => ({ ...prev, isOpen: false }))}
+        onCancel={() => setNotificationDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

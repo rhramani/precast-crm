@@ -30,6 +30,27 @@ const getStepClass = (stepKey, currentStatus) => {
 const fmt = (n) =>
   `₹${(n ?? 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
 
+const toWords = (num) => {
+  const a = [
+    '', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+    'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'
+  ];
+  const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  const numToWords = (n) => {
+    if (n < 20) return a[n];
+    if (n < 100) return b[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + a[n % 10] : '');
+    if (n < 1000) return a[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' and ' + numToWords(n % 100) : '');
+    if (n < 100000) return numToWords(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + numToWords(n % 1000) : '');
+    if (n < 10000000) return numToWords(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + numToWords(n % 100000) : '');
+    return numToWords(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + numToWords(n % 10000000) : '');
+  };
+
+  const rounded = Math.round(num);
+  if (rounded === 0) return 'Zero';
+  return numToWords(rounded);
+};
+
 /* ── Main Component ──────────────────────────────────────── */
 const QuotationDetailPage = () => {
   const { id } = useParams();
@@ -269,7 +290,7 @@ const QuotationDetailPage = () => {
             {/* Totals */}
             <div className="qd-totals">
               <div className="qd-totals__row qd-totals__row--sub">
-                <span>Sub Total (Net)</span>
+                <span>Sub Total — Combined Project Cost (Excl. Tax)</span>
                 <span>{fmt(quote.subTotal)}</span>
               </div>
               {showGST ? (
@@ -443,6 +464,183 @@ const QuotationDetailPage = () => {
             )}
           </div>
 
+        </div>
+      </div>
+
+      {/* ── Printable Invoice/Quotation Document (Only visible in Print) ── */}
+      <div className="printable-quote-doc">
+        {/* Header Section */}
+        <div className="pq-header-table">
+          <div className="pq-company-details">
+            <h2 className="pq-company-name">{quote.branchId?.branchName || 'GIR Precast'}</h2>
+            <p className="pq-company-text">{quote.branchId?.address || 'Industrial Area Phase 2, Delhi, India'}</p>
+            <p className="pq-company-text">Email: {quote.branchId?.email || 'branch@girprecast.com'} | Contact: {quote.branchId?.mobileNumber || '+919999999999'}</p>
+            {quote.branchId?.gstNumber && <p className="pq-company-text"><strong>GSTIN: {quote.branchId?.gstNumber}</strong></p>}
+          </div>
+          <div className="pq-quote-meta">
+            <h1 className="pq-title">SALES QUOTATION</h1>
+            <table className="pq-meta-table">
+              <tbody>
+                <tr>
+                  <td><strong>Quote No:</strong></td>
+                  <td>{quote.quoteNumber}</td>
+                </tr>
+                <tr>
+                  <td><strong>Date:</strong></td>
+                  <td>{new Date(quote.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</td>
+                </tr>
+                <tr>
+                  <td><strong>Valid Until:</strong></td>
+                  <td>{quote.validUntil ? new Date(quote.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}</td>
+                </tr>
+                <tr>
+                  <td><strong>Status:</strong></td>
+                  <td style={{ textTransform: 'uppercase' }}>{quote.status}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="pq-bill-to">
+          <h3 className="pq-section-title">QUOTATION FOR (CLIENT):</h3>
+          <div className="pq-client-details">
+            <p className="pq-client-name"><strong>{customer?.customerName || '—'}</strong></p>
+            {customer?.companyName && <p className="pq-client-text">{customer.companyName}</p>}
+            {customer?.address && <p className="pq-client-text">{customer.address}</p>}
+            {customer?.mobile && <p className="pq-client-text">Mobile: {customer.mobile}</p>}
+            {customer?.email && <p className="pq-client-text">Email: {customer.email}</p>}
+            {customer?.gstNumber && <p className="pq-client-text"><strong>GSTIN: {customer.gstNumber}</strong></p>}
+          </div>
+        </div>
+
+        {project && (
+          <div className="pq-project-info">
+            <p><strong>Project Name:</strong> {project.projectName}</p>
+            {project.description && <p><strong>Description:</strong> {project.description}</p>}
+          </div>
+        )}
+
+        {/* Items Table */}
+        <table className="pq-items-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Product / Description</th>
+              <th className="right">Qty</th>
+              <th className="right">Unit Rate (₹)</th>
+              <th className="right">Net Amount (₹)</th>
+              {showGST && (
+                gstType === 'intra' ? (
+                  <>
+                    <th className="right">CGST</th>
+                    <th className="right">SGST</th>
+                  </>
+                ) : (
+                  <th className="right">IGST</th>
+                )
+              )}
+              <th className="right">Total Amount (₹)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {quote.items.map((item, idx) => {
+              const net = item.quantity * item.rate;
+              const taxRate = item.taxPercent ?? 18;
+              const taxAmt = net * (taxRate / 100);
+              const total = net + taxAmt;
+              const prod = item.productId;
+              return (
+                <tr key={idx}>
+                  <td>{idx + 1}</td>
+                  <td>
+                    <strong>{prod?.productName || 'Unknown Product'}</strong>
+                    {prod?.productCode && <span className="pq-item-code"> ({prod.productCode})</span>}
+                  </td>
+                  <td className="right">{item.quantity}</td>
+                  <td className="right">{item.rate.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  <td className="right">{net.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                  {showGST && (
+                    gstType === 'intra' ? (
+                      <>
+                        <td className="right">{(taxRate / 2)}%<br/><span className="pq-tax-val">₹{(taxAmt / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></td>
+                        <td className="right">{(taxRate / 2)}%<br/><span className="pq-tax-val">₹{(taxAmt / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></td>
+                      </>
+                    ) : (
+                      <td className="right">{taxRate}%<br/><span className="pq-tax-val">₹{taxAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span></td>
+                    )
+                  )}
+                  <td className="right">{(showGST ? total : net).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {/* Totals Summary */}
+        <div className="pq-totals-section">
+          <div className="pq-totals-box">
+            <table className="pq-totals-table">
+              <tbody>
+                <tr>
+                  <td>Sub Total (Net):</td>
+                  <td className="right">₹{quote.subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                </tr>
+                {showGST && (
+                  gstType === 'intra' ? (
+                    <>
+                      <tr>
+                        <td>CGST:</td>
+                        <td className="right">₹{(quote.taxAmount / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                      <tr>
+                        <td>SGST:</td>
+                        <td className="right">₹{(quote.taxAmount / 2).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                      </tr>
+                    </>
+                  ) : (
+                    <tr>
+                      <td>IGST:</td>
+                      <td className="right">₹{quote.taxAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                    </tr>
+                  )
+                )}
+                <tr className="pq-grand-total-row">
+                  <td><strong>Grand Total ({showGST ? 'Incl. GST' : 'Excl. GST'}):</strong></td>
+                  <td className="right"><strong>₹{(showGST ? quote.grandTotal : quote.subTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</strong></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Amount in words */}
+        <div className="pq-amount-words">
+          <p><strong>Amount in Words:</strong> {toWords(showGST ? quote.grandTotal : quote.subTotal)} Rupees Only</p>
+        </div>
+
+        {/* Footer info: Bank Details + Terms */}
+        <div className="pq-footer-details">
+          <div className="pq-terms">
+            <h4>Terms & Conditions</h4>
+            <ol>
+              <li>Price Validity: Quote is valid until the validity date listed above.</li>
+              <li>Delivery: As per mutual agreement and schedule.</li>
+              <li>Payment Terms: {customer?.paymentTerms || 'Standard Terms Apply'}.</li>
+              <li>Taxes: GST charged at {showGST ? '18%' : 'applicable rates'} (as displayed above).</li>
+            </ol>
+          </div>
+          <div className="pq-signatures">
+            <div className="pq-signature-box">
+              <p style={{ height: 50 }}></p>
+              <div className="pq-signature-line">Customer Signature / Acceptance</div>
+            </div>
+            <div className="pq-signature-box">
+              <p style={{ height: 50 }}></p>
+              <div className="pq-signature-line">Authorized Signatory</div>
+              <p style={{ fontSize: 9, marginTop: 4, color: '#666' }}>for {quote.branchId?.branchName || 'GIR Precast'}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

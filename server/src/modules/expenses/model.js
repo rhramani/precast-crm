@@ -19,8 +19,8 @@ const expenseSchema = new mongoose.Schema(
     },
     expenseCategory: {
       type: String,
-      enum: ['transport', 'fuel', 'food', 'consumables', 'labour_welfare', 'labour', 'crane', 'jcb', 'accommodation', 'other'],
-      default: 'other',
+      trim: true,
+      default: '',
     },
     amount: {
       type: Number,

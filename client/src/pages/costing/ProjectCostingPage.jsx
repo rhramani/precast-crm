@@ -50,7 +50,7 @@ const ProjectCostingPage = () => {
     );
   }
 
-  const { revenue, estimated, actual, margin } = data;
+  const { revenue, estimated, actual, margin, quoteStatus } = data;
   const marginColor = margin.amount >= 0 ? 'var(--color-success)' : 'var(--color-danger)';
   const marginBg    = margin.amount >= 0
     ? 'var(--color-success-bg)'
@@ -61,32 +61,45 @@ const ProjectCostingPage = () => {
     ? Math.min(100, Math.round((actual.totalCost / estimated.totalCost) * 100))
     : 0;
 
+  const formatCurrency = (val) => {
+    if (val === null || val === undefined || isNaN(val)) return '₹0.00';
+    return `₹${Number(val).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  const getRevenueNote = () => {
+    if (isProject) return 'Total accepted & quoted project revenue';
+    if (quoteStatus === 'accepted') return 'Revenue from accepted quotation';
+    if (['sent', 'draft', 'quoted'].includes(quoteStatus)) return `Quoted revenue (${quoteStatus})`;
+    if (quoteStatus === 'estimated') return 'Derived from site target estimate';
+    return 'Quoted revenue for this site';
+  };
+
   const displaySubtitle = isProject 
     ? `Client: ${data.project?.customerName || data.project?.companyName || '—'}`
-    : `Project: ${data.site?.projectName} | Site: ${data.site?.siteName} (${data.site?.siteArea} meters)`;
+    : `Project: ${data.site?.projectName} | Site: ${data.site?.siteName} (${data.site?.siteArea} SQFT)`;
 
   const kpiItems = [
     {
       label: isProject ? 'Project Grand Revenue' : 'Allocated Site Revenue',
-      value: `₹${revenue.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      value: formatCurrency(revenue),
       icon: <IndianRupee size={18} />,
-      note: isProject ? 'Total accepted quotations revenue' : 'Quoted revenue for this site',
+      note: getRevenueNote(),
     },
     {
       label: isProject ? 'Total Project Actual Cost' : 'Total Actual Cost',
-      value: `₹${actual.totalCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      value: formatCurrency(actual.totalCost),
       icon: <DollarSign size={18} />,
       note: 'Incurred cost to date',
     },
     {
       label: isProject ? 'Project Budget Target' : 'Estimated Target Cost',
-      value: `₹${estimated.totalCost.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`,
+      value: formatCurrency(estimated.totalCost),
       icon: <Target size={18} />,
       note: isProject ? 'Aggregated estimated budget' : 'Planned budget for site',
     },
     {
-      label: isProject ? 'Project profit Margin' : 'Site Profit Margin',
-      value: `₹${margin.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })} (${margin.percent.toFixed(2)}%)`,
+      label: isProject ? 'Project Profit Margin' : 'Site Profit Margin',
+      value: `${formatCurrency(margin.amount)} (${margin.percent.toFixed(2)}%)`,
       icon: margin.amount >= 0 ? <TrendingUp size={18} /> : <TrendingDown size={18} />,
       note: margin.amount >= 0 ? 'Profitable' : 'Loss incurred',
       customValue: true,
@@ -171,7 +184,7 @@ const ProjectCostingPage = () => {
             <div className="detail-card__row">
               <span className="detail-card__label">Planned Estimate Cost</span>
               <strong className="detail-card__value">
-                ₹{estimated.totalCost.toLocaleString('en-IN')}
+                {formatCurrency(estimated.totalCost)}
               </strong>
             </div>
             <div className="detail-card__row">
@@ -179,7 +192,7 @@ const ProjectCostingPage = () => {
               <strong className="detail-card__value" style={{
                 color: actual.totalCost > estimated.totalCost ? 'var(--color-danger)' : 'var(--color-success)',
               }}>
-                ₹{actual.totalCost.toLocaleString('en-IN')}
+                {formatCurrency(actual.totalCost)}
               </strong>
             </div>
             <div className="detail-card__row" style={{ borderBottom: 'none' }}>
@@ -187,7 +200,7 @@ const ProjectCostingPage = () => {
               <strong className="detail-card__value" style={{
                 color: variance > 0 ? 'var(--color-danger)' : 'var(--color-success)',
               }}>
-                ₹{variance.toLocaleString('en-IN')} (
+                {formatCurrency(variance)} (
                 {estimated.totalCost > 0 ? ((variance / estimated.totalCost) * 100).toFixed(1) : 0}%)
               </strong>
             </div>
@@ -239,7 +252,7 @@ const ProjectCostingPage = () => {
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.accent, display: 'inline-block', flexShrink: 0 }} />
                   {item.label}
                 </span>
-                <strong className="detail-card__value">₹{item.value.toLocaleString('en-IN')}</strong>
+                <strong className="detail-card__value">{formatCurrency(item.value)}</strong>
               </div>
             ))}
           </div>
@@ -248,7 +261,7 @@ const ProjectCostingPage = () => {
           <div className="expense-total-row" style={{ marginTop: '18px' }}>
             <strong style={{ color: 'var(--color-primary-dark)', fontSize: 'var(--text-sm)' }}>Total Actual Cost</strong>
             <strong style={{ color: 'var(--chip-purple-icon)', fontSize: 'var(--text-lg)', letterSpacing: '-0.01em' }}>
-              ₹{actual.totalCost.toLocaleString('en-IN')}
+              {formatCurrency(actual.totalCost)}
             </strong>
           </div>
 
@@ -297,7 +310,7 @@ const ProjectCostingPage = () => {
               <thead>
                 <tr className="data-table__head">
                   <th className="data-table__th">Site Name</th>
-                  <th className="data-table__th">Length</th>
+                  <th className="data-table__th">Area</th>
                   <th className="data-table__th">Status</th>
                   <th className="data-table__th">Allocated Revenue</th>
                   <th className="data-table__th">Actual Cost</th>
@@ -308,7 +321,7 @@ const ProjectCostingPage = () => {
                 {data.sites.map((s, idx) => (
                   <tr key={idx} className="data-table__row">
                     <td className="data-table__td" style={{ fontWeight: 600 }}>{s.siteName}</td>
-                    <td className="data-table__td">{s.siteArea} m</td>
+                    <td className="data-table__td">{s.siteArea} SQFT</td>
                     <td className="data-table__td">
                       <StatusBadge status={s.status} />
                     </td>

@@ -3,7 +3,7 @@ const Joi = require('joi');
 const createExpenseSchema = Joi.object({
   projectId:       Joi.string().trim().required().messages({ 'any.required': 'Project mapping is required' }),
   siteId:          Joi.string().trim().required().messages({ 'any.required': 'Site destination is required' }),
-  expenseCategory: Joi.string().valid('transport', 'fuel', 'food', 'consumables', 'labour_welfare', 'labour', 'crane', 'jcb', 'accommodation', 'other').default('other'),
+  expenseCategory: Joi.string().trim().allow('', null),
   amount:          Joi.number().positive().required().messages({
     'number.positive': 'Expense amount must be greater than zero',
     'any.required': 'Expense amount is required',
@@ -14,10 +14,13 @@ const createExpenseSchema = Joi.object({
 });
 
 const updateExpenseSchema = Joi.object({
-  expenseCategory: Joi.string().valid('transport', 'fuel', 'food', 'consumables', 'labour_welfare', 'labour', 'crane', 'jcb', 'accommodation', 'other'),
+  projectId:       Joi.string().trim().allow('', null),
+  siteId:          Joi.string().trim().allow('', null),
+  expenseCategory: Joi.string().trim().allow('', null),
   amount:          Joi.number().positive(),
   expenseDate:     Joi.date(),
   description:     Joi.string().trim().allow('', null),
+  branchId:        Joi.string().trim().allow('', null),
 });
 
 const validate = (schema) => (req, res, next) => {

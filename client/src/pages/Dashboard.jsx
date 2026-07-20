@@ -33,7 +33,6 @@ import {
 import { useGetDispatchesQuery } from '../store/api/dispatchApi';
 import { useGetLowStockQuery, useGetRawMaterialsQuery } from '../store/api/rawMaterialApi';
 import { useGetInstallationsQuery } from '../store/api/installationApi';
-import { useGetInvoicesQuery } from '../store/api/invoiceApi';
 import { useGetProductionOrdersQuery } from '../store/api/productionApi';
 import { useGetFinishedGoodsInventoryQuery } from '../store/api/inventoryApi';
 import { useGetLabourersQuery } from '../store/api/labourApi';
@@ -138,7 +137,6 @@ const Dashboard = () => {
   const { data: finRes } = useGetFinancialReportQuery(reportParams);
   const { data: lowStockRes } = useGetLowStockQuery({ branchId });
   const { data: installRes } = useGetInstallationsQuery({ branchId, limit: 5, startDate: customStartDate, endDate: customEndDate });
-  const { data: invoicesRes } = useGetInvoicesQuery({ branchId, limit: 100 });
   const { data: prodOrdersRes } = useGetProductionOrdersQuery({ branchId, limit: 100 });
   const { data: perfRes } = useGetBranchPerformanceQuery({
     dateFilter: 'custom',

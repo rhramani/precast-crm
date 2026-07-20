@@ -68,10 +68,40 @@ const getProjectSites = async (projectId, branchFilter) => {
 const getCombinedRequirements = async (projectId, branchFilter) => {
   const sites = await Site.find({ projectId, ...branchFilter });
   const productMap = {};
+  const { calculateRequirements } = require('../sites/service');
+
+  let totalComponentsCost = 0;
+  let totalRawMaterialCost = 0;
+  let totalTransportCost = 0;
+  let totalLabourCost = 0;
 
   for (const site of sites) {
-    const calculation = await SiteCalculation.findOne({ siteId: site._id }).sort({ createdAt: -1 });
-    if (!calculation) continue;
+    let reqs = null;
+    try {
+      const siteArea = site.siteArea || 1000;
+      const calcResult = await calculateRequirements(site._id, branchFilter, siteArea);
+      reqs = calcResult.calculated;
+    } catch (e) {
+      console.error(`Failed to calculate requirements for site ${site._id}:`, e);
+      continue;
+    }
+
+    if (!reqs) continue;
+
+    const {
+      wallPanels = 0,
+      poles = 0,
+      beams = 0,
+      topBeams = 0,
+      prices = {},
+      rawMaterialCost = 0,
+      transportCost = 0,
+      actualLaborCost = 0,
+    } = reqs;
+
+    totalRawMaterialCost += rawMaterialCost || 0;
+    totalTransportCost += transportCost || 0;
+    totalLabourCost += actualLaborCost || 0;
 
     let template = null;
     if (site.wallTemplateId) {
@@ -82,25 +112,35 @@ const getCombinedRequirements = async (projectId, branchFilter) => {
 
     if (!template) continue;
 
-    const { wallPanels = 0, poles = 0, beams = 0, topBeams = 0 } = calculation.calculated || {};
-
     for (const pLine of template.products) {
       const prod = pLine.productId;
       if (!prod) continue;
 
+      const prodName = prod.productName?.toLowerCase() || '';
+      const prodCode = prod.productCode?.toLowerCase() || '';
       const catKey = prod.category?.name
         ? prod.category.name.toLowerCase().replace(/[\s-]/g, '_')
         : (typeof prod.category === 'string' ? prod.category : '');
       let quantity = 0;
+      let unitPrice = prod.sellingPrice || 0;
 
-      if (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey)) {
+      const isPole = ['pole', 'column'].includes(catKey) || prodName.includes('column') || prodName.includes('pole') || prodName.includes('post') || prodCode.includes('col');
+      const isTopBeam = catKey === 'top_beam' || prodName.includes('top beam');
+      const isBeam = (catKey === 'beam' || prodName.includes('beam')) && !isTopBeam;
+      const isPanel = !isPole && !isBeam && !isTopBeam && (['cement_wall', 'compound_wall', 'boundary_wall', 'slab'].includes(catKey) || prodName.includes('panel') || prodName.includes('slab') || prodName.includes('wall'));
+
+      if (isPanel) {
         quantity = wallPanels;
-      } else if (['pole', 'column'].includes(catKey)) {
+        unitPrice = prices.panel || unitPrice;
+      } else if (isPole) {
         quantity = poles;
-      } else if (catKey === 'beam') {
+        unitPrice = prices.pole || unitPrice;
+      } else if (isBeam) {
         quantity = beams;
-      } else if (catKey === 'top_beam') {
+        unitPrice = prices.beam || unitPrice;
+      } else if (isTopBeam) {
         quantity = topBeams;
+        unitPrice = prices.topBeam || unitPrice;
       }
 
       if (quantity > 0) {
@@ -111,16 +151,34 @@ const getCombinedRequirements = async (projectId, branchFilter) => {
             productName: prod.productName,
             productCode: prod.productCode,
             quantity: 0,
-            rate: prod.sellingPrice || 0,
+            rate: unitPrice,
             taxPercent: 18,
           };
         }
         productMap[prodId].quantity += quantity;
+        totalComponentsCost += quantity * unitPrice;
       }
     }
   }
 
-  return Object.values(productMap);
+  const items = Object.values(productMap);
+  const subTotal = totalComponentsCost + totalRawMaterialCost + totalTransportCost + totalLabourCost;
+  const taxAmount = subTotal * 0.18;
+  const grandTotal = subTotal + taxAmount;
+
+  return {
+    items,
+    summary: {
+      siteCount: sites.length,
+      componentsCost: Math.round(totalComponentsCost),
+      rawMaterialCost: Math.round(totalRawMaterialCost),
+      transportCost: Math.round(totalTransportCost),
+      labourCost: Math.round(totalLabourCost),
+      subTotal: Math.round(subTotal),
+      taxAmount: Math.round(taxAmount),
+      grandTotal: Math.round(grandTotal),
+    },
+  };
 };
 
 const deleteProject = async (id) => {

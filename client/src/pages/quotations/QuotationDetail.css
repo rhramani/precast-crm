@@ -247,45 +247,233 @@
 }
 
 /* ── Print Styles ──────────────────────────────────────────── */
+.printable-quote-doc {
+  display: none;
+}
+
 @media print {
-  /* Hide everything that isn't the quotation content */
-  .sidebar,
-  .topbar,
-  .qd-header__back,
-  .qd-header__actions,
-  .qd-action-group,
-  .btn {
-    display: none !important;
+  /* Hide all screen elements */
+  body * {
+    visibility: hidden;
   }
-
-  .page-container,
-  .qd-page {
-    padding: 0 !important;
-    margin: 0 !important;
-    max-width: none !important;
+  
+  /* Show only our printable document */
+  .printable-quote-doc, .printable-quote-doc * {
+    visibility: visible;
   }
-
-  .qd-grid {
-    grid-template-columns: 1fr !important;
-  }
-
-  /* Sidebar panel prints after items */
-  .qd-sidebar { order: 1; }
-  .qd-items-panel { order: 0; }
-
-  body {
+  
+  .printable-quote-doc {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    display: block !important;
     background: #fff !important;
-    font-size: 12px !important;
+    color: #000 !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    padding: 10px !important;
   }
 
-  .qd-panel {
-    border: 1px solid #ccc !important;
-    box-shadow: none !important;
-    break-inside: avoid;
+  /* Reset margin/paddings for print container */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
   }
+}
 
-  .qd-items-table th,
-  .qd-items-table td {
-    padding: 6px 8px !important;
-  }
+.pq-header-table {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 2px solid #1a365d;
+  padding-bottom: 12px;
+  margin-bottom: 18px;
+}
+.pq-company-details {
+  flex: 1;
+}
+.pq-company-name {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0 0 4px;
+  color: #1a365d;
+}
+.pq-company-text {
+  font-size: 10px;
+  color: #4a5568;
+  margin: 1px 0;
+}
+.pq-quote-meta {
+  text-align: right;
+  min-width: 200px;
+}
+.pq-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #1a365d;
+  margin: 0 0 6px;
+  letter-spacing: 0.5px;
+}
+.pq-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.pq-meta-table td {
+  padding: 2px 0;
+  text-align: right;
+}
+.pq-meta-table td:first-child {
+  text-align: left;
+  padding-right: 10px;
+  color: #4a5568;
+}
+
+.pq-bill-to {
+  margin-bottom: 16px;
+}
+.pq-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2d3748;
+  border-bottom: 1px solid #cbd5e0;
+  padding-bottom: 3px;
+  margin: 0 0 6px;
+  text-transform: uppercase;
+}
+.pq-client-details {
+  font-size: 11px;
+}
+.pq-client-name {
+  font-size: 13px;
+  margin: 0 0 3px;
+  color: #1a202c;
+}
+.pq-client-text {
+  margin: 1px 0;
+  color: #4a5568;
+}
+
+.pq-project-info {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 10px;
+  margin-bottom: 16px;
+  font-size: 10px;
+}
+.pq-project-info p {
+  margin: 1px 0;
+  color: #4a5568;
+}
+
+.pq-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 18px;
+  font-size: 10px;
+}
+.pq-items-table th {
+  background: #f7fafc;
+  border-top: 1px solid #cbd5e0;
+  border-bottom: 2px solid #cbd5e0;
+  font-weight: 700;
+  color: #2d3748;
+  padding: 6px 8px;
+  text-align: left;
+}
+.pq-items-table th.right, .pq-items-table td.right {
+  text-align: right;
+}
+.pq-items-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 6px 8px;
+  color: #2d3748;
+}
+.pq-item-code {
+  color: #718096;
+  font-size: 9px;
+}
+.pq-tax-val {
+  font-size: 8px;
+  color: #718096;
+  display: block;
+}
+
+.pq-totals-section {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+.pq-totals-box {
+  width: 250px;
+}
+.pq-totals-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+.pq-totals-table td {
+  padding: 3px 4px;
+  color: #4a5568;
+}
+.pq-totals-table td.right {
+  text-align: right;
+}
+.pq-grand-total-row {
+  border-top: 1px solid #cbd5e0;
+  border-bottom: 2px solid #2d3748;
+  font-size: 11px;
+}
+.pq-grand-total-row td {
+  padding: 6px 4px;
+  color: #1a202c;
+}
+
+.pq-amount-words {
+  font-size: 10px;
+  margin-bottom: 24px;
+  padding: 6px;
+  background: #f7fafc;
+  border-left: 3px solid #cbd5e0;
+}
+
+.pq-footer-details {
+  display: flex;
+  justify-content: space-between;
+  gap: 30px;
+  margin-top: 30px;
+  page-break-inside: avoid;
+}
+.pq-terms {
+  flex: 1;
+  font-size: 9px;
+  color: #718096;
+}
+.pq-terms h4 {
+  margin: 0 0 4px;
+  color: #4a5568;
+  font-size: 10px;
+}
+.pq-terms ol {
+  padding-left: 12px;
+  margin: 0;
+}
+.pq-terms li {
+  margin-bottom: 2px;
+}
+.pq-signatures {
+  display: flex;
+  gap: 20px;
+  width: 350px;
+}
+.pq-signature-box {
+  flex: 1;
+  text-align: center;
+}
+.pq-signature-line {
+  border-top: 1px dashed #cbd5e0;
+  padding-top: 4px;
+  font-size: 9px;
+  color: #4a5568;
 }

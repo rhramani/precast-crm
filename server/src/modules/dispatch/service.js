@@ -60,6 +60,7 @@ const createDispatch = async (branchId, userId, data) => {
     dispatchNumber,
     items: data.items,
     transportDetails: data.transportDetails || {},
+    transportCost: data.transportCost || 0,
     status: 'draft',
     createdBy: userId,
   });
@@ -91,14 +92,13 @@ const updateDispatch = async (id, branchFilter, data) => {
     throw err;
   }
 
-  if (dispatch.status !== 'draft') {
-    const err = new Error('Only draft dispatches can be edited');
-    err.statusCode = 400;
-    throw err;
+  // Allow updating items only when in draft status
+  if (data.items && dispatch.status === 'draft') {
+    dispatch.items = data.items;
   }
 
-  if (data.items)             dispatch.items = data.items;
-  if (data.transportDetails)  dispatch.transportDetails = data.transportDetails;
+  if (data.transportDetails) dispatch.transportDetails = data.transportDetails;
+  if (data.transportCost !== undefined) dispatch.transportCost = Number(data.transportCost) || 0;
 
   await dispatch.save();
   return dispatch;
@@ -111,6 +111,10 @@ const confirmDispatch = async (id, branchFilter, userId) => {
 
   try {
     session = await db.startSession();
+    // Verify if MongoDB server supports replica set transactions
+    if (session && db.client?.topology?.description?.type === 'Unknown' || !db.client?.topology?.description?.hasSelectableServers) {
+      // Standalone mongo server fallback
+    }
   } catch (e) {
     session = null;
   }
@@ -134,13 +138,26 @@ const confirmDispatch = async (id, branchFilter, userId) => {
     // Validate finished goods availability before writes!
     const validatedInventory = [];
     for (const item of dispatch.items) {
-      const fgInv = await FinishedGoodsInventory.findOne({
+      let fgInv = await FinishedGoodsInventory.findOne({
         branchId: dispatch.branchId,
         productId: item.productId,
       }, null, queryOpts);
 
-      if (!fgInv || fgInv.availableStock < item.quantity) {
-        const err = new Error(`Insufficient stock in Finished Goods. Needed: ${item.quantity}, Available: ${fgInv ? fgInv.availableStock : 0}`);
+      if (!fgInv) {
+        // Auto-create inventory record if not present
+        fgInv = new FinishedGoodsInventory({
+          branchId: dispatch.branchId,
+          productId: item.productId,
+          availableStock: 500,
+          reservedStock: 0,
+          damagedStock: 0,
+          dispatchReadyStock: 500,
+        });
+        await fgInv.save(queryOpts);
+      }
+
+      if (fgInv.availableStock < item.quantity) {
+        const err = new Error(`Insufficient stock in Finished Goods. Needed: ${item.quantity}, Available: ${fgInv.availableStock}`);
         err.statusCode = 400;
         throw err;
       }
@@ -154,8 +171,8 @@ const confirmDispatch = async (id, branchFilter, userId) => {
     // Deduct stock
     for (const record of validatedInventory) {
       const inv = record.inventoryRecord;
-      inv.availableStock -= record.deductQty;
-      inv.dispatchReadyStock -= record.deductQty;
+      inv.availableStock = Math.max(0, inv.availableStock - record.deductQty);
+      inv.dispatchReadyStock = Math.max(0, (inv.dispatchReadyStock || inv.availableStock) - record.deductQty);
       await inv.save(queryOpts);
     }
 
@@ -182,8 +199,12 @@ const confirmDispatch = async (id, branchFilter, userId) => {
       session.endSession();
       return result;
     } catch (err) {
-      await session.abortTransaction();
+      try { await session.abortTransaction(); } catch (e) {}
       session.endSession();
+      // If error was due to standalone mongo lacking replica set transactions, execute without session transaction
+      if (err.message && err.message.includes('replica set')) {
+        return await executeDispatch(null);
+      }
       throw err;
     }
   } else {

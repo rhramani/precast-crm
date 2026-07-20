@@ -20,7 +20,6 @@ import {
   Users,
   FolderOpen,
   FileText,
-  Receipt,
   CreditCard,
   ShoppingCart,
   Truck,
@@ -47,7 +46,6 @@ const ICON_MAP = {
   'Customers': <Users className="sidebar__icon-svg" />,
   'Projects': <FolderOpen className="sidebar__icon-svg" />,
   'Quotations': <FileText className="sidebar__icon-svg" />,
-  'Invoices': <Receipt className="sidebar__icon-svg" />,
   'Payments': <CreditCard className="sidebar__icon-svg" />,
   'Purchases': <ShoppingCart className="sidebar__icon-svg" />,
   'Suppliers': <Users className="sidebar__icon-svg" />,
@@ -85,7 +83,6 @@ const getNavIcon = (item) => {
   if (item.label.startsWith('Finished Goods')) return ICON_MAP['InventoryFinishedGoods'];
   if (item.label.startsWith('Customers')) return ICON_MAP['Customers'];
   if (item.label.startsWith('Quotations')) return ICON_MAP['Quotations'];
-  if (item.label.startsWith('Invoices')) return ICON_MAP['Invoices'];
   if (item.label.startsWith('Purchase')) return ICON_MAP['Purchases'];
   if (item.label.startsWith('Suppliers')) return ICON_MAP['Suppliers'];
   if (item.label.startsWith('Dispatch')) return ICON_MAP['Dispatch'];
@@ -110,12 +107,10 @@ const NAV_ITEMS = [
   { label: 'Customers',     path: '/customers',     roles: ['branch'] },
   { label: 'Projects',      path: '/projects',      roles: ['branch'] },
   { label: 'Quotations',    path: '/quotations',    roles: ['branch'] },
-  { label: 'Invoices',      path: '/invoices',      roles: ['branch'] },
   { label: 'Payments',      path: '/payments',      roles: ['branch'] },
   { divider: true, label: 'Logistics',              roles: ['branch'] },
   { label: 'Suppliers', path: '/purchases/suppliers', roles: ['branch'] },
   { label: 'Dispatches',    path: '/dispatch',      roles: ['branch'] },
-  { label: 'Equipment',     path: '/equipment',     roles: ['branch'] },
   { divider: true, label: 'Resources',              roles: ['branch'] },
   { label: 'Labour',        path: '/labour',        roles: ['branch'] },
   { label: 'Expenses',      path: '/expenses',      roles: ['branch'] },

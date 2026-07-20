@@ -439,18 +439,18 @@ async function runTests() {
       siteAddress: 'Metro Line Phase 4, Mayur Vihar Ext',
       siteEngineer: 'Mr. R. K. Sharma',
       contactNumber: '+919876123450',
-      siteArea: 120, // 120 meters
+      siteArea: 2400, // 2400 SQFT
     },
   });
   assert(createSiteRes.success === true, 'Site creation failed');
   siteId = createSiteRes.data.site._id;
-  logSuccess(`Site created. Site ID: ${siteId}, Area: ${createSiteRes.data.site.siteArea} meters`);
+  logSuccess(`Site created. Site ID: ${siteId}, Area: ${createSiteRes.data.site.siteArea} SQFT`);
 
   // Run Site Requirement Calculator
   const siteCalcRes = await request(`/sites/${siteId}/requirement-calculator`, {
     method: 'POST',
     token: branchUserToken,
-    body: { siteArea: 120 },
+    body: { siteArea: 2400 },
   });
   assert(siteCalcRes.success === true, 'Site requirement calculator failed');
   assert(siteCalcRes.data.calculated.estimatedCost > 0, 'Estimated cost should be greater than zero');

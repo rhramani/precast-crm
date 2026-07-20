@@ -4,8 +4,9 @@ import { selectCurrentUser, selectCurrentRole } from '../store/slices/authSlice'
 import { useUpdateProfileMutation } from '../store/api/authApi';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import './ProfilePage.css';
-import PhoneInput from 'react-phone-number-input';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input/max';
 import 'react-phone-number-input/style.css';
+import { restrictPhoneNumber } from '../utils/phoneUtils';
 
 const ProfilePage = () => {
   const user = useSelector(selectCurrentUser);
@@ -26,6 +27,8 @@ const ProfilePage = () => {
 
   const [validationErrors, setValidationErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [profileMobileCountry, setProfileMobileCountry] = useState('IN');
+  const [profileMobileNumberCountry, setProfileMobileNumberCountry] = useState('IN');
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -65,6 +68,18 @@ const ProfilePage = () => {
     }
     if (!form.email.trim()) {
       errors.email = 'Email is required';
+    }
+    if (role === 'branch') {
+      if (form.mobileNumber && !isValidPhoneNumber(form.mobileNumber)) {
+        errors.mobileNumber = 'Please enter a valid mobile number for the selected country';
+      }
+      if (form.gstNumber && form.gstNumber.trim().length !== 15) {
+        errors.gstNumber = 'GSTIN must be exactly 15 characters';
+      }
+    } else {
+      if (form.mobile && !isValidPhoneNumber(form.mobile)) {
+        errors.mobile = 'Please enter a valid mobile number for the selected country';
+      }
     }
     if (form.password) {
       if (form.password.length < 6) {
@@ -190,9 +205,13 @@ const ProfilePage = () => {
                   <PhoneInput
                     placeholder="Enter mobile number"
                     value={form.mobileNumber}
-                    onChange={(val) => setForm({ ...form, mobileNumber: val || '' })}
+                    onChange={(val) => setForm({ ...form, mobileNumber: restrictPhoneNumber(val || '', profileMobileNumberCountry) })}
+                    onCountryChange={setProfileMobileNumberCountry}
                     defaultCountry="IN"
+                    international
+                    limitMaxLength
                   />
+                  {validationErrors.mobileNumber && <span className="field-error">{validationErrors.mobileNumber}</span>}
                 </div>
               </div>
 
@@ -203,9 +222,16 @@ const ProfilePage = () => {
                   type="text"
                   className="field-input"
                   value={form.gstNumber}
-                  onChange={handleChange}
+                  onChange={(e) => {
+                    setForm({ ...form, gstNumber: e.target.value.toUpperCase().replace(/\s/g, '') });
+                    if (validationErrors.gstNumber) {
+                      setValidationErrors({ ...validationErrors, gstNumber: '' });
+                    }
+                  }}
                   placeholder="15-digit GSTIN"
+                  maxLength={15}
                 />
+                {validationErrors.gstNumber && <span className="field-error">{validationErrors.gstNumber}</span>}
               </div>
 
               <div className="field-group">
@@ -226,9 +252,13 @@ const ProfilePage = () => {
               <PhoneInput
                 placeholder="Enter mobile number"
                 value={form.mobile}
-                onChange={(val) => setForm({ ...form, mobile: val || '' })}
+                onChange={(val) => setForm({ ...form, mobile: restrictPhoneNumber(val || '', profileMobileCountry) })}
+                onCountryChange={setProfileMobileCountry}
                 defaultCountry="IN"
+                international
+                limitMaxLength
               />
+              {validationErrors.mobile && <span className="field-error">{validationErrors.mobile}</span>}
             </div>
           )}
 

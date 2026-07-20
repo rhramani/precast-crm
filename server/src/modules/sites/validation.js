@@ -50,7 +50,7 @@ const statusSchema = Joi.object({
 
 const calculateSchema = Joi.object({
   siteArea: Joi.number().positive().required().messages({
-    'number.positive': 'Site area (linear length) must be greater than zero',
+    'number.positive': 'Site area (SQFT) must be greater than zero',
   }),
 });
 

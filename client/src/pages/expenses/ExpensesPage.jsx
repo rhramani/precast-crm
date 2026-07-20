@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import {
   useGetExpensesQuery,
   useCreateExpenseMutation,
+  useUpdateExpenseMutation,
   useDeleteExpenseMutation,
 } from '../../store/api/expenseApi';
 import { useGetProjectsQuery } from '../../store/api/projectApi';
@@ -33,15 +34,18 @@ const ExpensesPage = () => {
 
   // Mutations
   const [createExpense] = useCreateExpenseMutation();
+  const [updateExpense] = useUpdateExpenseMutation();
   const [deleteExpense] = useDeleteExpenseMutation();
   const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, id: null });
 
   // Drawer States
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [drawerMode, setDrawerMode] = useState('add'); // 'add' | 'edit' | 'view'
+  const [selectedExpenseId, setSelectedExpenseId] = useState(null);
   const [form, setForm] = useState({
     projectId: '',
     siteId: '',
-    expenseCategory: 'transport',
+    expenseCategory: '',
     amount: '',
     expenseDate: '',
     description: '',
@@ -54,37 +58,43 @@ const ExpensesPage = () => {
 
   const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5050/api/v1';
 
-  const handleProjectChange = async (projectId) => {
-    setForm((prev) => ({ ...prev, projectId, siteId: '' }));
-    if (!projectId) {
+  const fetchSitesForProject = async (projId) => {
+    if (!projId) {
       setProjectSites([]);
-      return;
+      return [];
     }
     try {
-      const response = await fetch(`${API_BASE}/projects/${projectId}/sites`, {
+      const response = await fetch(`${API_BASE}/projects/${projId}/sites`, {
         headers: { Authorization: `Bearer ${localStorage.getItem('accessToken')}` },
       });
       if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.message || 'Failed to load project sites');
+        setProjectSites([]);
+        return [];
       }
       const resData = await response.json();
       if (resData.success) {
-        setProjectSites(resData.data.sites || []);
-      } else {
-        throw new Error(resData.message || 'Failed to load project sites');
+        const sites = resData.data.sites || [];
+        setProjectSites(sites);
+        return sites;
       }
     } catch (e) {
       setProjectSites([]);
-      alert(e.message || 'Failed to load project sites');
     }
+    return [];
+  };
+
+  const handleProjectChange = async (projectId) => {
+    setForm((prev) => ({ ...prev, projectId, siteId: '' }));
+    await fetchSitesForProject(projectId);
   };
 
   const handleOpenAdd = () => {
+    setDrawerMode('add');
+    setSelectedExpenseId(null);
     setForm({
       projectId: '',
       siteId: '',
-      expenseCategory: 'transport',
+      expenseCategory: '',
       amount: '',
       expenseDate: new Date().toISOString().split('T')[0],
       description: '',
@@ -95,8 +105,50 @@ const ExpensesPage = () => {
     setDrawerOpen(true);
   };
 
+  const handleOpenView = async (row) => {
+    setDrawerMode('view');
+    setSelectedExpenseId(row._id);
+    const projId = row.projectId?._id || row.projectId || '';
+    const siteId = row.siteId?._id || row.siteId || '';
+    await fetchSitesForProject(projId);
+    setForm({
+      projectId: projId,
+      siteId: siteId,
+      expenseCategory: row.expenseCategory || '',
+      amount: row.amount || '',
+      expenseDate: row.expenseDate ? new Date(row.expenseDate).toISOString().split('T')[0] : '',
+      description: row.description || '',
+      branchId: row.branchId || '',
+    });
+    setValidationErrors({});
+    setDrawerOpen(true);
+  };
+
+  const handleOpenEdit = async (row) => {
+    setDrawerMode('edit');
+    setSelectedExpenseId(row._id);
+    const projId = row.projectId?._id || row.projectId || '';
+    const siteId = row.siteId?._id || row.siteId || '';
+    await fetchSitesForProject(projId);
+    setForm({
+      projectId: projId,
+      siteId: siteId,
+      expenseCategory: row.expenseCategory || '',
+      amount: row.amount || '',
+      expenseDate: row.expenseDate ? new Date(row.expenseDate).toISOString().split('T')[0] : '',
+      description: row.description || '',
+      branchId: row.branchId || '',
+    });
+    setValidationErrors({});
+    setDrawerOpen(true);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (drawerMode === 'view') {
+      setDrawerOpen(false);
+      return;
+    }
     setValidationErrors({});
 
     const errors = {};
@@ -114,10 +166,14 @@ const ExpensesPage = () => {
     }
 
     try {
-      await createExpense(form).unwrap();
+      if (drawerMode === 'edit') {
+        await updateExpense({ id: selectedExpenseId, ...form }).unwrap();
+      } else {
+        await createExpense(form).unwrap();
+      }
       setDrawerOpen(false);
     } catch (err) {
-      setValidationErrors({ general: err?.data?.message || 'Expense logging failed.' });
+      setValidationErrors({ general: err?.data?.message || 'Expense operation failed.' });
     }
   };
 
@@ -137,7 +193,7 @@ const ExpensesPage = () => {
   };
 
   const columns = [
-    { key: 'expenseCategory', label: 'Expense Category', render: (val) => val.toUpperCase().replace('_', ' ') },
+    { key: 'expenseCategory', label: 'Expense Category', render: (val) => val || '—' },
     { key: 'projectId', label: 'Project Name', render: (val) => val?.projectName || '—' },
     { key: 'siteId', label: 'Project Site', render: (val) => val?.siteName || '—' },
     { key: 'amount', label: 'Expense Amount (₹)', render: (val) => `₹${val.toLocaleString()}` },
@@ -153,12 +209,22 @@ const ExpensesPage = () => {
       render: (_, row) => (
         <ActionsDropdown
           actions={[
+            { label: 'View', onClick: () => handleOpenView(row) },
+            { label: 'Edit', onClick: () => handleOpenEdit(row) },
             { label: 'Delete', onClick: () => handleDeleteExpense(row._id), type: 'danger' }
           ]}
         />
       ),
     },
   ];
+
+  const getDrawerTitle = () => {
+    if (drawerMode === 'view') return 'View Site Expense Voucher';
+    if (drawerMode === 'edit') return 'Edit Site Expense Voucher';
+    return 'Log Site Expense Voucher';
+  };
+
+  const isReadOnly = drawerMode === 'view';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -183,12 +249,18 @@ const ExpensesPage = () => {
       <FormDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        title="Log Site Expense Voucher"
+        title={getDrawerTitle()}
         footer={
-          <>
-            <button onClick={() => setDrawerOpen(false)} className="btn btn--secondary">Cancel</button>
-            <button onClick={handleSubmit} className="btn btn--primary">Save</button>
-          </>
+          isReadOnly ? (
+            <button onClick={() => setDrawerOpen(false)} className="btn btn--secondary">Close</button>
+          ) : (
+            <>
+              <button onClick={() => setDrawerOpen(false)} className="btn btn--secondary">Cancel</button>
+              <button onClick={handleSubmit} className="btn btn--primary">
+                {drawerMode === 'edit' ? 'Update' : 'Save'}
+              </button>
+            </>
+          )
         }
       >
         {validationErrors.general && <div className="field-error">{validationErrors.general}</div>}
@@ -200,6 +272,7 @@ const ExpensesPage = () => {
               className="field-select"
               value={form.projectId}
               onChange={(e) => handleProjectChange(e.target.value)}
+              disabled={isReadOnly}
             >
               <option value="">Choose project...</option>
               {projects.map((p) => (
@@ -215,7 +288,7 @@ const ExpensesPage = () => {
               className="field-select"
               value={form.siteId}
               onChange={(e) => setForm({ ...form, siteId: e.target.value })}
-              disabled={!form.projectId}
+              disabled={isReadOnly || !form.projectId}
             >
               <option value="">Select Site...</option>
               {projectSites.map((s) => (
@@ -235,28 +308,21 @@ const ExpensesPage = () => {
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               placeholder="e.g. 15000"
+              disabled={isReadOnly}
             />
             {validationErrors.amount && <span className="field-error">{validationErrors.amount}</span>}
           </div>
 
           <div className="field-group">
             <label className="field-label">Expense Category</label>
-            <select
-              className="field-select"
+            <input
+              type="text"
+              className="field-input"
               value={form.expenseCategory}
               onChange={(e) => setForm({ ...form, expenseCategory: e.target.value })}
-            >
-              <option value="transport">Transport logistics</option>
-              <option value="fuel">Fuel & Generators</option>
-              <option value="food">Site food & catering</option>
-              <option value="consumables">Consumables & tools</option>
-              <option value="labour_welfare">Labour Welfare</option>
-              <option value="labour">Labour wages / charges</option>
-              <option value="crane">Crane charges</option>
-              <option value="jcb">JCB charges</option>
-              <option value="accommodation">Accommodation</option>
-              <option value="other">Other misc charges</option>
-            </select>
+              placeholder="Enter expense category..."
+              disabled={isReadOnly}
+            />
           </div>
         </div>
 
@@ -268,6 +334,7 @@ const ExpensesPage = () => {
               className="field-input"
               value={form.expenseDate}
               onChange={(e) => setForm({ ...form, expenseDate: e.target.value })}
+              disabled={isReadOnly}
             />
           </div>
 
@@ -278,6 +345,7 @@ const ExpensesPage = () => {
                 className="field-select"
                 value={form.branchId}
                 onChange={(e) => setForm({ ...form, branchId: e.target.value })}
+                disabled={isReadOnly}
               >
                 <option value="">Select Branch...</option>
                 {branches.map((b) => (
@@ -297,6 +365,7 @@ const ExpensesPage = () => {
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             placeholder="Scope of cost details..."
             rows={3}
+            disabled={isReadOnly}
           />
         </div>
       </FormDrawer>

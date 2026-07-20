@@ -9,8 +9,9 @@ import {
 import DataTable from '../../components/ui/DataTable';
 import FormDrawer from '../../components/ui/FormDrawer';
 import StatusBadge from '../../components/ui/StatusBadge';
-import PhoneInput from 'react-phone-number-input';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input/max';
 import 'react-phone-number-input/style.css';
+import { restrictPhoneNumber } from '../../utils/phoneUtils';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import ActionsDropdown from '../../components/ui/ActionsDropdown';
 
@@ -68,6 +69,7 @@ const SuppliersPage = () => {
   });
 
   const [validationErrors, setValidationErrors] = useState({});
+  const [supplierMobileCountry, setSupplierMobileCountry] = useState('IN');
 
   const handleSearch = (val) => {
     setSearch(val);
@@ -90,6 +92,7 @@ const SuppliersPage = () => {
       gstNumber: '',
       paymentTerms: '',
     });
+    setSupplierMobileCountry('IN');
     setValidationErrors({});
     setDrawerOpen(true);
   };
@@ -124,7 +127,14 @@ const SuppliersPage = () => {
 
     const errors = {};
     if (!form.supplierName.trim()) errors.supplierName = 'Supplier name is required';
-    if (!form.mobileNumber.trim()) errors.mobileNumber = 'Mobile number is required';
+    if (!form.mobileNumber || !form.mobileNumber.trim()) {
+      errors.mobileNumber = 'Mobile number is required';
+    } else if (!isValidPhoneNumber(form.mobileNumber)) {
+      errors.mobileNumber = 'Please enter a valid mobile number for the selected country';
+    }
+    if (form.gstNumber && form.gstNumber.trim().length !== 15) {
+      errors.gstNumber = 'GSTIN must be exactly 15 characters';
+    }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -262,8 +272,11 @@ const SuppliersPage = () => {
             <PhoneInput
               placeholder="Enter mobile number"
               value={form.mobileNumber}
-              onChange={(val) => setForm({ ...form, mobileNumber: val || '' })}
+              onChange={(val) => setForm({ ...form, mobileNumber: restrictPhoneNumber(val || '', supplierMobileCountry) })}
+              onCountryChange={setSupplierMobileCountry}
               defaultCountry="IN"
+              international
+              limitMaxLength
             />
             {validationErrors.mobileNumber && <span className="field-error">{validationErrors.mobileNumber}</span>}
           </div>
@@ -281,15 +294,17 @@ const SuppliersPage = () => {
             />
           </div>
           <div className="field-group">
-            <label className="field-label">GSTIN (GST Number)</label>
-            <input
-              type="text"
-              className="field-input"
-              value={form.gstNumber}
-              onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
-              placeholder="15-digit GSTIN"
-            />
-          </div>
+          <label className="field-label">GSTIN (GST Number)</label>
+          <input
+            type="text"
+            className="field-input"
+            value={form.gstNumber}
+            onChange={(e) => setForm({ ...form, gstNumber: e.target.value.toUpperCase().replace(/\s/g, '') })}
+            placeholder="15-digit GSTIN"
+            maxLength={15}
+          />
+          {validationErrors.gstNumber && <span className="field-error">{validationErrors.gstNumber}</span>}
+        </div>
         </div>
 
         <div className="field-group">

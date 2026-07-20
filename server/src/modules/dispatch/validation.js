@@ -18,6 +18,7 @@ const createDispatchSchema = Joi.object({
     contactNumber: Joi.string().trim().allow('', null),
     helperName:    Joi.string().trim().allow('', null),
   }).default(),
+  transportCost:    Joi.number().min(0).allow(null),
   branchId:         Joi.string().trim().allow('', null),
 });
 
@@ -29,6 +30,7 @@ const updateDispatchSchema = Joi.object({
     contactNumber: Joi.string().trim().allow('', null),
     helperName:    Joi.string().trim().allow('', null),
   }),
+  transportCost:    Joi.number().min(0).allow(null),
   status:           Joi.string().valid('draft', 'dispatched', 'delivered'),
 });
 

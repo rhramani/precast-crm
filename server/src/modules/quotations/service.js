@@ -87,7 +87,21 @@ const createQuotation = async (branchId, userId, data) => {
   }
   const quoteNumber = `QT-${String(suffix).padStart(5, '0')}`;
 
-  const { items, subTotal, taxAmount, grandTotal } = calculateTotals(data.items);
+  let { items, subTotal, taxAmount, grandTotal } = calculateTotals(data.items || []);
+
+  if (data.projectId) {
+    try {
+      const projectService = require('../projects/service');
+      const combined = await projectService.getCombinedRequirements(data.projectId, { branchId });
+      if (combined && combined.summary && combined.summary.grandTotal > 0) {
+        subTotal = combined.summary.subTotal;
+        taxAmount = combined.summary.taxAmount;
+        grandTotal = combined.summary.grandTotal;
+      }
+    } catch (e) {
+      console.error('Failed to fetch combined project requirements for quote:', e);
+    }
+  }
 
   const quote = await Quotation.create({
     branchId,
@@ -121,11 +135,26 @@ const updateQuotation = async (id, branchFilter, data) => {
   }
 
   if (data.items) {
-    const { items, subTotal, taxAmount, grandTotal } = calculateTotals(data.items);
-    quote.items = items;
-    quote.subTotal = subTotal;
-    quote.taxAmount = taxAmount;
-    quote.grandTotal = grandTotal;
+    const calculated = calculateTotals(data.items);
+    quote.items = calculated.items;
+    quote.subTotal = calculated.subTotal;
+    quote.taxAmount = calculated.taxAmount;
+    quote.grandTotal = calculated.grandTotal;
+  }
+
+  const targetProjectId = data.projectId || quote.projectId;
+  if (targetProjectId) {
+    try {
+      const projectService = require('../projects/service');
+      const combined = await projectService.getCombinedRequirements(targetProjectId, branchFilter);
+      if (combined && combined.summary && combined.summary.grandTotal > 0) {
+        quote.subTotal = combined.summary.subTotal;
+        quote.taxAmount = combined.summary.taxAmount;
+        quote.grandTotal = combined.summary.grandTotal;
+      }
+    } catch (e) {
+      console.error('Failed to update combined site totals for quote:', e);
+    }
   }
 
   if (data.validUntil) {

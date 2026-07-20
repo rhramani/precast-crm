@@ -8,7 +8,6 @@ import BranchesPage from '../pages/branches/BranchesPage';
 import ProfilePage from '../pages/ProfilePage';
 import ProductionOrderDetailPage from '../pages/production/ProductionOrderDetailPage';
 import SiteDetailPage from '../pages/projects/SiteDetailPage';
-import InvoiceDetailPage from '../pages/invoices/InvoiceDetailPage';
 import PurchaseOrderDetailPage from '../pages/purchases/PurchaseOrderDetailPage';
 import ProductionReportPage from '../pages/reports/ProductionReportPage';
 import InventoryReportPage from '../pages/reports/InventoryReportPage';
@@ -44,11 +43,8 @@ import DispatchDetailPage from '../pages/dispatch/DispatchDetailPage';
 import InstallationsPage from '../pages/installation/InstallationsPage';
 import InstallationDetailPage from '../pages/installation/InstallationDetailPage';
 import LabourPage from '../pages/labour/LabourPage';
-import EquipmentPage from '../pages/equipment/EquipmentPage';
 import ExpensesPage from '../pages/expenses/ExpensesPage';
-import ProjectCostingPage from '../pages/costing/ProjectCostingPage';
 import ReportsPage from '../pages/reports/ReportsPage';
-import InvoicesPage from '../pages/invoices/InvoicesPage';
 import PaymentsPage from '../pages/payments/PaymentsPage';
 
 /**
@@ -196,13 +192,6 @@ const AppRouter = () => (
       element={<ProtectedRoute excludeRole="super_admin"><QuotationDetailPage /></ProtectedRoute>}
     />
 
-    {/* ── Invoices ── */}
-    <Route path="/invoices"
-      element={<ProtectedRoute excludeRole="super_admin"><InvoicesPage /></ProtectedRoute>}
-    />
-    <Route path="/invoices/:id"
-      element={<ProtectedRoute excludeRole="super_admin"><InvoiceDetailPage /></ProtectedRoute>}
-    />
 
     {/* ── Payments ── */}
     <Route path="/payments"
@@ -241,25 +230,12 @@ const AppRouter = () => (
       element={<ProtectedRoute excludeRole="super_admin"><LabourPage /></ProtectedRoute>}
     />
 
-    {/* ── Equipment ── */}
-    <Route path="/equipment"
-      element={<ProtectedRoute excludeRole="super_admin"><EquipmentPage /></ProtectedRoute>}
-    />
-
 
 
 
     {/* ── Expenses ── */}
     <Route path="/expenses"
       element={<ProtectedRoute excludeRole="super_admin"><ExpensesPage /></ProtectedRoute>}
-    />
-
-    {/* ── Costing ── */}
-    <Route path="/costing/:siteId"
-      element={<ProtectedRoute excludeRole="super_admin"><ProjectCostingPage /></ProtectedRoute>}
-    />
-    <Route path="/costing/project/:projectId"
-      element={<ProtectedRoute excludeRole="super_admin"><ProjectCostingPage /></ProtectedRoute>}
     />
 
     {/* ── Reports ── */}

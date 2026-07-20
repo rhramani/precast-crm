@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   useGetDispatchQuery,
@@ -5,6 +6,7 @@ import {
   useConfirmDeliveryMutation,
 } from '../../store/api/dispatchApi';
 import StatusBadge from '../../components/ui/StatusBadge';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { Truck, CheckCircle2, Printer, ArrowLeft } from 'lucide-react';
 
 const DispatchDetailPage = () => {
@@ -16,6 +18,23 @@ const DispatchDetailPage = () => {
 
   const [confirmDispatch, { isLoading: isShipping }] = useConfirmDispatchMutation();
   const [confirmDelivery, { isLoading: isDelivering }] = useConfirmDeliveryMutation();
+
+  const [confirmDialog, setConfirmDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    type: 'primary',
+    onConfirm: null,
+  });
+
+  const [notificationDialog, setNotificationDialog] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    type: 'danger',
+  });
 
   if (isLoading) {
     return <div style={{ padding: '24px', textAlign: 'center' }}>Loading dispatch dispatch log...</div>;
@@ -33,26 +52,52 @@ const DispatchDetailPage = () => {
     );
   }
 
-  const handleShip = async () => {
-    if (!window.confirm('Are you sure you want to mark this vehicle as dispatched/shipped? This will deduct finished goods inventory.')) {
-      return;
-    }
-    try {
-      await confirmDispatch(id).unwrap();
-    } catch (err) {
-      alert(err?.data?.message || 'Dispatch operation failed');
-    }
+  const handleShip = () => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Ship Vehicle & Deduct Inventory',
+      message: `Are you sure you want to mark dispatch ${dispatchData.dispatchNumber} as shipped? This will deduct finished goods inventory.`,
+      confirmText: 'Ship Vehicle',
+      cancelText: 'Cancel',
+      type: 'primary',
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await confirmDispatch(id).unwrap();
+        } catch (err) {
+          setNotificationDialog({
+            isOpen: true,
+            title: 'Shipment Failed',
+            message: err?.data?.message || 'Dispatch operation failed',
+            type: 'danger',
+          });
+        }
+      },
+    });
   };
 
-  const handleDeliver = async () => {
-    if (!window.confirm('Are you sure you want to confirm delivery at site?')) {
-      return;
-    }
-    try {
-      await confirmDelivery(id).unwrap();
-    } catch (err) {
-      alert(err?.data?.message || 'Delivery confirmation failed');
-    }
+  const handleDeliver = () => {
+    setConfirmDialog({
+      isOpen: true,
+      title: 'Confirm Delivery',
+      message: `Are you sure you want to confirm delivery for ${dispatchData.dispatchNumber} at site?`,
+      confirmText: 'Confirm Delivery',
+      cancelText: 'Cancel',
+      type: 'success',
+      onConfirm: async () => {
+        setConfirmDialog((prev) => ({ ...prev, isOpen: false }));
+        try {
+          await confirmDelivery(id).unwrap();
+        } catch (err) {
+          setNotificationDialog({
+            isOpen: true,
+            title: 'Delivery Failed',
+            message: err?.data?.message || 'Delivery confirmation failed',
+            type: 'danger',
+          });
+        }
+      },
+    });
   };
 
   return (
@@ -174,6 +219,28 @@ const DispatchDetailPage = () => {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.title}
+        message={confirmDialog.message}
+        confirmText={confirmDialog.confirmText}
+        cancelText={confirmDialog.cancelText}
+        type={confirmDialog.type}
+        onConfirm={confirmDialog.onConfirm}
+        onCancel={() => setConfirmDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
+
+      <ConfirmDialog
+        isOpen={notificationDialog.isOpen}
+        title={notificationDialog.title}
+        message={notificationDialog.message}
+        confirmText="OK"
+        cancelText=""
+        type={notificationDialog.type}
+        onConfirm={() => setNotificationDialog((prev) => ({ ...prev, isOpen: false }))}
+        onCancel={() => setNotificationDialog((prev) => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

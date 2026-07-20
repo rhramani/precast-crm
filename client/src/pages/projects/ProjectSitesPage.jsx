@@ -18,8 +18,9 @@ import FormDrawer from '../../components/ui/FormDrawer';
 import StatusBadge from '../../components/ui/StatusBadge';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import ActionsDropdown from '../../components/ui/ActionsDropdown';
-import PhoneInput from 'react-phone-number-input';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input/max';
 import 'react-phone-number-input/style.css';
+import { restrictPhoneNumber } from '../../utils/phoneUtils';
 
 const prettifyCategory = (cat) => {
   if (!cat) return '';
@@ -92,6 +93,7 @@ const ProjectSitesPage = () => {
   });
 
   const [validationErrors, setValidationErrors] = useState({});
+  const [siteContactCountry, setSiteContactCountry] = useState('IN');
 
   const handleOpenAdd = () => {
     setSelectedSite(null);
@@ -115,6 +117,7 @@ const ProjectSitesPage = () => {
       steelRate: 0,
       aggregateRate: 0,
     });
+    setSiteContactCountry('IN');
     setValidationErrors({});
     setDrawerOpen(true);
   };
@@ -164,6 +167,9 @@ const ProjectSitesPage = () => {
     const errors = {};
     if (!form.siteName.trim()) errors.siteName = 'Site name is required';
     if (userRole === 'super_admin' && !form.branchId) errors.branchId = 'Branch assignment is required';
+    if (form.contactNumber && !isValidPhoneNumber(form.contactNumber)) {
+      errors.contactNumber = 'Please enter a valid contact number for the selected country';
+    }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -210,7 +216,7 @@ const ProjectSitesPage = () => {
     { key: 'wallTemplateId', label: 'Wall Template', render: (val) => val?.name || '—' },
     { key: 'siteEngineer', label: 'Engineer' },
     { key: 'contactNumber', label: 'Contact' },
-    { key: 'siteArea', label: 'Wall Length', render: (val) => `${val} meters` },
+    { key: 'siteArea', label: 'Wall Area (SQFT)', render: (val) => `${val} SQFT` },
     { key: 'status', label: 'Status', render: (val) => <StatusBadge status={val} /> },
     {
       key: 'dates',
@@ -230,7 +236,6 @@ const ProjectSitesPage = () => {
           actions={[
             { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Home size={14} /> Site Dashboard</span>, onClick: () => navigate(`/sites/${row._id}`), type: 'info' },
             { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Layers size={14} /> Calc Requirements</span>, onClick: () => navigate(`/sites/${row._id}/requirement-calculator`), type: 'primary' },
-            { label: <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><DollarSign size={14} /> View P&L / Costing</span>, onClick: () => navigate(`/costing/${row._id}`), type: 'success' },
             { divider: true },
             { label: 'Edit Site', onClick: () => handleOpenEdit(row), type: 'primary' },
             { label: 'Next Status', onClick: () => handleStatusToggle(row), type: 'success' },
@@ -321,9 +326,13 @@ const ProjectSitesPage = () => {
             <PhoneInput
               placeholder="Engineer mobile"
               value={form.contactNumber}
-              onChange={(val) => setForm({ ...form, contactNumber: val || '' })}
+              onChange={(val) => setForm({ ...form, contactNumber: restrictPhoneNumber(val || '', siteContactCountry) })}
+              onCountryChange={setSiteContactCountry}
               defaultCountry="IN"
+              international
+              limitMaxLength
             />
+            {validationErrors.contactNumber && <span className="field-error">{validationErrors.contactNumber}</span>}
           </div>
         </div>
 
@@ -350,7 +359,7 @@ const ProjectSitesPage = () => {
 
         <div className="form-row">
           <div className="field-group">
-            <label className="field-label">Wall Linear Length (Meters)</label>
+            <label className="field-label">Wall Area (SQFT)</label>
             <input
               type="number"
               className="field-input"
@@ -394,120 +403,7 @@ const ProjectSitesPage = () => {
           </select>
         </div>
 
-        <div className="form-row">
-          <div className="field-group">
-            <label className="field-label">Logistics Transport Rate (Per Trip)</label>
-            <input
-              type="number"
-              className="field-input"
-              value={form.transportRatePerTrip}
-              onChange={(e) => setForm({ ...form, transportRatePerTrip: Number(e.target.value) })}
-              placeholder="Leave 0 for default (₹3,500)"
-            />
-          </div>
-          <div className="field-group">
-            <label className="field-label">Est. Labour Rate (Per Man-Day)</label>
-            <input
-              type="number"
-              className="field-input"
-              value={form.labourRatePerManDay}
-              onChange={(e) => setForm({ ...form, labourRatePerManDay: Number(e.target.value) })}
-              placeholder="Leave 0 for default (₹800)"
-            />
-          </div>
-        </div>
 
-        <div style={{ marginTop: '20px', borderTop: '1px solid var(--color-border)', paddingTop: '15px' }}>
-          <h4 style={{ margin: '0 0 4px 0', fontSize: '13px', color: 'var(--color-primary-dark)', fontWeight: 700 }}>
-            Site-Specific Pricing & Rates Override (Optional)
-          </h4>
-          <p style={{ margin: '0 0 16px 0', fontSize: '11px', color: 'var(--color-text-secondary)' }}>
-            Leave fields at 0 to use standard prices/rates from Product Master and Raw Material Master.
-          </p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div className="field-group" style={{ flex: 1 }}>
-                <label className="field-label">Panel Price (per pc)</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  value={form.panelSellingPrice}
-                  onChange={(e) => setForm({ ...form, panelSellingPrice: Number(e.target.value) })}
-                  placeholder="e.g. 700"
-                />
-              </div>
-              <div className="field-group" style={{ flex: 1 }}>
-                <label className="field-label">Pole Price (per pc)</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  value={form.poleSellingPrice}
-                  onChange={(e) => setForm({ ...form, poleSellingPrice: Number(e.target.value) })}
-                  placeholder="e.g. 1400"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div className="field-group" style={{ flex: 1 }}>
-                <label className="field-label">Beam Price (per pc)</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  value={form.beamSellingPrice}
-                  onChange={(e) => setForm({ ...form, beamSellingPrice: Number(e.target.value) })}
-                  placeholder="e.g. 500"
-                />
-              </div>
-              <div className="field-group" style={{ flex: 1 }}>
-                <label className="field-label">Top Beam Price (per pc)</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  value={form.topBeamSellingPrice}
-                  onChange={(e) => setForm({ ...form, topBeamSellingPrice: Number(e.target.value) })}
-                  placeholder="e.g. 450"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <div className="field-group" style={{ flex: 1 }}>
-                <label className="field-label">Cement Rate (per kg)</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  step="0.01"
-                  value={form.cementRate}
-                  onChange={(e) => setForm({ ...form, cementRate: Number(e.target.value) })}
-                  placeholder="e.g. 8.5"
-                />
-              </div>
-              <div className="field-group" style={{ flex: 1 }}>
-                <label className="field-label">Steel Rate (per kg)</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  step="0.01"
-                  value={form.steelRate}
-                  onChange={(e) => setForm({ ...form, steelRate: Number(e.target.value) })}
-                  placeholder="e.g. 64"
-                />
-              </div>
-              <div className="field-group" style={{ flex: 1 }}>
-                <label className="field-label">Aggregate (per brass)</label>
-                <input
-                  type="number"
-                  className="field-input"
-                  value={form.aggregateRate}
-                  onChange={(e) => setForm({ ...form, aggregateRate: Number(e.target.value) })}
-                  placeholder="e.g. 4800"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
 
         <div className="field-group">
           <label className="field-label">Site Address / Landmark</label>

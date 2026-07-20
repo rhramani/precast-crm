@@ -53,6 +53,11 @@ const dispatchSchema = new mongoose.Schema(
       type: transportDetailsSchema,
       default: () => ({}),
     },
+    transportCost: {
+      type: Number,
+      default: 0,
+      min: [0, 'Transport cost cannot be negative'],
+    },
     status: {
       type: String,
       enum: ['draft', 'dispatched', 'delivered'],

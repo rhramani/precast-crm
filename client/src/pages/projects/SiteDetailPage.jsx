@@ -169,7 +169,7 @@ const SiteDetailPage = () => {
           <StatusBadge status={site.status} />
           {site.siteArea > 0 && (
             <span className="redesign-header__area-pill">
-              {site.siteArea} m
+              {site.siteArea} SQFT
             </span>
           )}
         </div>
@@ -240,7 +240,7 @@ const SiteDetailPage = () => {
           <InfoRow label="Site Address" value={site.siteAddress} />
           <InfoRow label="Site Engineer" value={site.siteEngineer} />
           <InfoRow label="Contact Number" value={site.contactNumber} />
-          <InfoRow label="Wall Length / Area" value={site.siteArea ? `${site.siteArea} meters` : '—'} />
+          <InfoRow label="Wall Area (SQFT)" value={site.siteArea ? `${site.siteArea} SQFT` : '—'} />
           <InfoRow label="Start Date" value={startDate ? startDate.toLocaleDateString() : '—'} />
           <InfoRow label="End Date" value={endDate ? endDate.toLocaleDateString() : '—'} />
           <InfoRow label="Status" value={site.status?.replace('_', ' ').toUpperCase()} />
@@ -320,12 +320,6 @@ const SiteDetailPage = () => {
             className="btn-premium btn-premium--primary"
           >
             <Layers size={15} /> Compute Material Requirements
-          </button>
-          <button
-            onClick={() => navigate(`/costing/${site._id}`)}
-            className="btn-premium btn-premium--secondary"
-          >
-            <DollarSign size={15} /> View P&L / Costing
           </button>
           <button
             onClick={() => navigate('/dispatch')}

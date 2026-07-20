@@ -13,8 +13,9 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import AvatarInitials from '../../components/ui/AvatarInitials';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import ActionsDropdown from '../../components/ui/ActionsDropdown';
-import PhoneInput from 'react-phone-number-input';
+import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input/max';
 import 'react-phone-number-input/style.css';
+import { restrictPhoneNumber } from '../../utils/phoneUtils';
 
 const CustomersPage = () => {
   const [page, setPage] = useState(1);
@@ -55,6 +56,7 @@ const CustomersPage = () => {
   });
 
   const [validationErrors, setValidationErrors] = useState({});
+  const [customerCountry, setCustomerCountry] = useState('IN');
 
   const handleSearch = (val) => {
     setSearch(val);
@@ -76,6 +78,7 @@ const CustomersPage = () => {
       dob: '',
       personalAddress: '',
     });
+    setCustomerCountry('IN');
     setValidationErrors({});
     setDrawerOpen(true);
   };
@@ -109,7 +112,14 @@ const CustomersPage = () => {
 
     const errors = {};
     if (!form.customerName.trim()) errors.customerName = 'Customer name is required';
-    if (!form.mobile.trim())       errors.mobile = 'Mobile number is required';
+    if (!form.mobile || !form.mobile.trim()) {
+      errors.mobile = 'Mobile number is required';
+    } else if (!isValidPhoneNumber(form.mobile)) {
+      errors.mobile = 'Please enter a valid mobile number for the selected country';
+    }
+    if (form.gstNumber && form.gstNumber.trim().length !== 15) {
+      errors.gstNumber = 'GSTIN must be exactly 15 characters';
+    }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
@@ -326,8 +336,11 @@ const CustomersPage = () => {
             <PhoneInput
               placeholder="Enter mobile number"
               value={form.mobile}
-              onChange={(val) => setForm({ ...form, mobile: val || '' })}
+              onChange={(val) => setForm({ ...form, mobile: restrictPhoneNumber(val || '', customerCountry) })}
+              onCountryChange={setCustomerCountry}
               defaultCountry="IN"
+              international
+              limitMaxLength
             />
             {validationErrors.mobile && <span className="field-error">{validationErrors.mobile}</span>}
           </div>
@@ -349,9 +362,11 @@ const CustomersPage = () => {
             type="text"
             className="field-input"
             value={form.gstNumber}
-            onChange={(e) => setForm({ ...form, gstNumber: e.target.value })}
+            onChange={(e) => setForm({ ...form, gstNumber: e.target.value.toUpperCase().replace(/\s/g, '') })}
             placeholder="15-digit GSTIN"
+            maxLength={15}
           />
+          {validationErrors.gstNumber && <span className="field-error">{validationErrors.gstNumber}</span>}
         </div>
 
         <div className="field-group">

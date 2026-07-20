@@ -50,11 +50,17 @@ const remove = async (req, res) => {
   res.json({ success: true, message: 'Project site deleted successfully' });
 };
 
+const getDispatchRequirements = async (req, res) => {
+  const result = await siteService.getSiteProductRequirements(req.params.id, req.branchFilter);
+  res.json({ success: true, data: result });
+};
+
 module.exports = {
   create,
   update,
   updateStatus,
   calculate,
+  getDispatchRequirements,
   getOne,
   remove,
 };

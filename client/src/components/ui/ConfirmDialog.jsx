@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, AlertTriangle } from 'lucide-react';
+import { Trash2, AlertTriangle, Truck, CheckCircle2, Info } from 'lucide-react';
 import './ConfirmDialog.css';
 
 const ConfirmDialog = ({
@@ -8,7 +8,7 @@ const ConfirmDialog = ({
   message = 'Are you sure you want to proceed?',
   onConfirm,
   onCancel,
-  confirmText = 'Delete',
+  confirmText = 'Confirm',
   cancelText = 'Cancel',
   type = 'danger',
 }) => {
@@ -19,12 +19,11 @@ const ConfirmDialog = ({
       <div className="confirm-dialog animate-zoom" onClick={(e) => e.stopPropagation()}>
         <div className="confirm-dialog__header">
           <div className={`confirm-dialog__icon-container confirm-dialog__icon-container--${type}`}>
-            {type === 'danger' && (
-              <Trash2 size={24} className="confirm-dialog__icon" />
-            )}
-            {type === 'warning' && (
-              <AlertTriangle size={24} className="confirm-dialog__icon" />
-            )}
+            {type === 'danger' && <Trash2 size={24} className="confirm-dialog__icon" />}
+            {type === 'warning' && <AlertTriangle size={24} className="confirm-dialog__icon" />}
+            {type === 'primary' && <Truck size={24} className="confirm-dialog__icon" />}
+            {type === 'success' && <CheckCircle2 size={24} className="confirm-dialog__icon" />}
+            {type === 'info' && <Info size={24} className="confirm-dialog__icon" />}
           </div>
           <h3 className="confirm-dialog__title">{title}</h3>
         </div>

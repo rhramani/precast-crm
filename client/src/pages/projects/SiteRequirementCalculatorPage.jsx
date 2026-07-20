@@ -21,7 +21,6 @@ const SiteRequirementCalculatorPage = () => {
   const { id: siteId } = useParams();
   const navigate = useNavigate();
 
-  const [inputMode, setInputMode] = useState('meters'); // 'meters' | 'sqft'
   const [siteArea, setSiteArea] = useState('');
   const [result, setResult] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -36,7 +35,7 @@ const SiteRequirementCalculatorPage = () => {
       calculateRequirements({ id: siteId, siteArea: site.siteArea })
         .unwrap()
         .then((res) => {
-          setResult({ ...res.data, lengthInMeters: site.siteArea });
+          setResult({ ...res.data, lengthInMeters: res.data.calculated?.lengthInMeters });
         })
         .catch((err) => {
           setErrorMsg(err?.data?.message || 'Calculation operation failed.');
@@ -57,20 +56,37 @@ const SiteRequirementCalculatorPage = () => {
       return;
     }
 
-    const wallHeight = 1.83; // meters
-    const lengthInMeters = inputMode === 'sqft'
-      ? (inputVal * 0.0929) / wallHeight
-      : inputVal;
-
     try {
-      const res = await calculateRequirements({ id: siteId, siteArea: lengthInMeters }).unwrap();
-      setResult({ ...res.data, inputSqft: inputMode === 'sqft' ? inputVal : null, lengthInMeters });
+      const res = await calculateRequirements({ id: siteId, siteArea: inputVal }).unwrap();
+      setResult({
+        ...res.data,
+        inputSqft: inputVal,
+        lengthInMeters: res.data.calculated?.lengthInMeters
+      });
     } catch (err) {
       setErrorMsg(err?.data?.message || 'Calculation operation failed.');
     }
   };
 
   const calculated = result?.calculated;
+
+  const loggedTrips = calculated?.transportTrips || 0;
+  const transportRate = calculated?.transportRate || 3500;
+  const transportCost = calculated?.transportCost || (loggedTrips * transportRate);
+
+  const loggedLabourDays = calculated?.labourManDays ?? calculated?.labour ?? 0;
+  const actualLaborCost = calculated?.actualLaborCost || 0;
+  const logisticsLaborCost = calculated?.logisticsLaborCost || (transportCost + actualLaborCost);
+
+  const componentCost = [
+    (calculated?.wallPanels || 0) * (calculated?.prices?.panel || 0),
+    (calculated?.poles || 0) * (calculated?.prices?.pole || 0),
+    (calculated?.beams || 0) * (calculated?.prices?.beam || 0),
+    (calculated?.topBeams || 0) * (calculated?.prices?.topBeam || 0),
+  ].reduce((a, b) => a + b, 0);
+
+  const rawMaterialCost = calculated?.rawMaterialCost || 0;
+  const totalSiteCost = componentCost + rawMaterialCost + logisticsLaborCost;
 
   // Build stock comparison map from finished goods
   const fgMap = {};
@@ -139,33 +155,11 @@ const SiteRequirementCalculatorPage = () => {
 
       {/* ── Input Card ── */}
       <div className="glass-card--no-hover">
-        {/* Toggle */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '28px', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '13px', color: '#64748b', fontWeight: 600 }}>
-            Calculation Input Mode:
-          </span>
-          <div className="toggle-pill-container">
-            {[
-              { key: 'meters', label: '📏 Meters' },
-              { key: 'sqft',   label: '📐 SQFT' },
-            ].map(({ key, label }) => (
-              <button
-                key={key}
-                type="button"
-                onClick={() => { setInputMode(key); setSiteArea(''); setResult(null); }}
-                className={`toggle-pill-btn ${inputMode === key ? 'toggle-pill-btn--active' : ''}`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Form */}
         <form onSubmit={handleCalculate} style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, maxWidth: '400px' }}>
             <label style={{ display: 'block', fontSize: '13px', fontWeight: 700, color: '#1e293b', marginBottom: '8px' }}>
-              {inputMode === 'meters' ? 'Boundary Wall Length (Meters)' : 'Site Area (Square Feet)'}
+              Site Area (Square Feet)
               <span style={{ color: '#ef4444', marginLeft: 3 }}>*</span>
             </label>
             <input
@@ -173,17 +167,9 @@ const SiteRequirementCalculatorPage = () => {
               className="input-field-redesign"
               value={siteArea}
               onChange={(e) => setSiteArea(e.target.value)}
-              placeholder={inputMode === 'meters' ? 'e.g. 150' : 'e.g. 2500'}
+              placeholder="e.g. 2500"
               disabled={isLoading}
             />
-            {inputMode === 'sqft' && siteArea && !isNaN(Number(siteArea)) && Number(siteArea) > 0 && (
-              <div style={{
-          fontSize: 'var(--text-xs)', color: 'var(--color-primary)', marginTop: '7px', fontWeight: 'var(--font-semibold)',
-                background: 'var(--color-primary-light)', padding: '6px 10px', borderRadius: 'var(--radius-sm)', display: 'inline-block',
-              }}>
-                ≈ {((Number(siteArea) * 0.0929) / 1.83).toFixed(1)} meters of wall length (assuming 6ft wall height)
-              </div>
-            )}
           </div>
           <button
             type="submit"
@@ -220,23 +206,21 @@ const SiteRequirementCalculatorPage = () => {
           <div className="cost-gradient-banner" onClick={() => navigate(`/sites/${siteId}/cost-breakdown`)} title="Click to view detailed costing sheet">
             <div style={{ position: 'relative', zIndex: 1 }}>
               <div className="cost-gradient-banner__label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Estimated Project Cost (Components + Logistics + Labour)
+                Calculated Project Cost (Components + Logistics + Labour)
                 <span style={{ fontSize: '10px', background: 'rgba(255, 255, 255, 0.15)', padding: '2px 8px', borderRadius: '10px', color: '#fff', textTransform: 'none', fontWeight: 500 }}>
                   🔍 Click to view costing sheet
                 </span>
               </div>
               <h1 className="cost-gradient-banner__value">
-                ₹{calculated.estimatedCost?.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                ₹{(totalSiteCost || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
               </h1>
             </div>
-            <div style={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
+             <div style={{ textAlign: 'right', position: 'relative', zIndex: 1 }}>
               <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.65)', fontWeight: 'var(--font-bold)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                {result.inputSqft ? 'Input Area' : 'Wall Length'}
+                Wall Area
               </div>
               <div style={{ fontSize: '1.4rem', fontWeight: 'var(--font-bold)', color: 'var(--color-text-inverse)', marginTop: '6px', letterSpacing: '-0.02em' }}>
-                {result.inputSqft
-                  ? `${result.inputSqft} SQFT ≈ ${result.lengthInMeters?.toFixed(1)} m`
-                  : `${result.siteArea} meters`}
+                {result.inputSqft || result.siteArea} SQFT
               </div>
             </div>
           </div>
@@ -308,7 +292,7 @@ const SiteRequirementCalculatorPage = () => {
                    </div>
                  ))
                )}
-             </div>
+              </div>
 
             {/* Logistics & Crew — Amber */}
             <div className="calc-result-card calc-result-card--amber">
@@ -316,32 +300,58 @@ const SiteRequirementCalculatorPage = () => {
                 <div className="calc-result-card__icon">
                   <Truck size={18} />
                 </div>
-                <div className="calc-result-card__title">Logistics & Crew</div>
+                <div className="calc-result-card__title">Logistics & Crew (From Dispatch & Labour)</div>
               </div>
+
               {[
-                { label: 'Labour Days Logged', val: `${calculated.labour} man-days` },
-                { label: 'Installation Duration', val: `${calculated.installationDays} days` },
-                { label: 'Actual Transport Trips', val: `${calculated.transportTrips} trips` },
+                {
+                  label: 'Logistics Transport Trips',
+                  val: `${loggedTrips} trips logged`,
+                  sub: loggedTrips > 0
+                    ? `${calculated.dispatchesBreakdown?.length || 0} dispatch challans logged from Dispatch tab (Total Freight: ₹${(calculated.transportCost || 0).toLocaleString('en-IN')})`
+                    : 'No dispatches logged in Dispatch tab yet'
+                },
+                {
+                  label: 'Crew Labour Area Allocated',
+                  val: `${(calculated.labourBreakdown && calculated.labourBreakdown.length > 0) ? (calculated.labourBreakdown[0]?.sqftAllocated || Math.round((result.inputSqft || result.siteArea || 0) / calculated.labourBreakdown.length)).toLocaleString('en-IN') : (result.inputSqft || result.siteArea || 0).toLocaleString('en-IN')} sqft/worker`,
+                  sub: calculated.labourBreakdown?.length > 0
+                    ? `${calculated.labourBreakdown.length} active workers assigned (${(result.inputSqft || result.siteArea || 0).toLocaleString('en-IN')} SQFT total)`
+                    : 'No labourers assigned to this site yet'
+                },
+                {
+                  label: 'Logged Logistics & Labour Cost',
+                  val: `₹${logisticsLaborCost.toLocaleString('en-IN')}`,
+                  highlight: true
+                }
               ].map((item, i) => (
-                <div key={i} className="calc-result-card__row">
+                <div key={i} className="calc-result-card__row" style={{ minHeight: '44px' }}>
                   <span className="calc-result-card__row-label">{item.label}</span>
-                  <span className="calc-result-card__row-value">{item.val}</span>
+                  <div style={{ textAlign: 'right' }}>
+                    <span className="calc-result-card__row-value" style={{ display: 'block', color: item.highlight ? 'var(--color-warning-dark)' : 'inherit', fontWeight: item.highlight ? 700 : 'inherit' }}>
+                      {item.val}
+                    </span>
+                    {item.sub && (
+                      <span style={{ fontSize: '10px', color: 'var(--color-text-secondary)', display: 'block', marginTop: '2px', fontWeight: 600 }}>
+                        {item.sub}
+                      </span>
+                    )}
+                  </div>
                 </div>
               ))}
 
               {calculated.labourBreakdown && calculated.labourBreakdown.length > 0 && (
                 <div style={{ marginTop: '16px', borderTop: '1px dashed var(--color-border)', paddingTop: '12px' }}>
-                  <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: '8px', letterSpacing: '0.5px' }}>Labourers Logged Details</div>
+                  <div style={{ fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', color: 'var(--color-text-secondary)', marginBottom: '8px', letterSpacing: '0.5px' }}>Labourers Logged Details (SQFT Basis)</div>
                   {calculated.labourBreakdown.map((l, idx) => (
                     <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', padding: '4px 0' }}>
                       <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>
                         {l.labourName} ({l.labourType.toUpperCase().replace('_', ' ')})
                         <span style={{ fontWeight: 400, color: 'var(--color-text-secondary)', fontSize: '11px', marginLeft: '6px' }}>
-                          @ ₹{(l.dailyWages || 800).toLocaleString('en-IN')}/day
+                          @ ₹{(l.ratePerSqft || l.dailyWages || 13).toLocaleString('en-IN')}/sqft
                         </span>
                       </span>
                       <span style={{ color: '#d97706', fontWeight: 700 }}>
-                        {l.daysLogged} days (₹{(l.totalCost || (l.daysLogged * 800)).toLocaleString('en-IN')})
+                        {(l.sqftAllocated || l.daysLogged).toLocaleString('en-IN')} sqft (₹{(l.totalCost || 0).toLocaleString('en-IN')})
                       </span>
                     </div>
                   ))}
@@ -360,10 +370,12 @@ const SiteRequirementCalculatorPage = () => {
                       <div key={idx} style={{ display: 'flex', flexDirection: 'column', padding: '6px 0', borderBottom: idx < calculated.dispatchesBreakdown.length - 1 ? '1px dashed var(--color-border)' : 'none' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
                           <span style={{ color: 'var(--color-text-primary)', fontWeight: 600 }}>Challan: #{d.challanNumber || '—'}</span>
-                          <span style={{ color: 'var(--color-text-secondary)', fontSize: '11px' }}>{dateFormatted}</span>
+                          <span style={{ color: '#d97706', fontWeight: 600, fontSize: '11px' }}>
+                            Freight: ₹{(d.transportCost || 3500).toLocaleString('en-IN')}
+                          </span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
-                          <span>Veh: {d.vehicleNumber || '—'} ({d.driverName || '—'})</span>
+                          <span>Veh: {d.vehicleNumber || '—'} ({d.driverName || '—'}) · {dateFormatted}</span>
                           <span style={{
                             textTransform: 'capitalize',
                             fontWeight: 600,
